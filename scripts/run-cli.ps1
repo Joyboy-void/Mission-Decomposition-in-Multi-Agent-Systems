@@ -1,5 +1,9 @@
 $ErrorActionPreference = "Stop"
 
+# Use UTF-8 for console output so Unicode LTL symbols
+# such as ∧, ∨, ⊤, and ⊥ are displayed correctly.
+chcp 65001 > $null
+
 $ProjectRoot = Split-Path -Parent $PSScriptRoot
 
 $Jar = Join-Path `
