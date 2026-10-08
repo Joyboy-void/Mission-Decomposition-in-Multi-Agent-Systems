@@ -1,30 +1,43 @@
 # `ltlf2ra-app`
 
-This module is the application layer for the current LTLf-to-Residual-Automaton use case.
+The application module assembles the project into a usable LTLf-to-RA service.
 
 ## `Ltlf2RaService`
 
-The main application service.
+`build(String)`:
 
-`build(String)` does the following:
+1. validates the input
+2. parses the formula
+3. collects atomic propositions
+4. constructs the alphabet
+5. creates the residual automaton builder
+6. builds the reachable Residual Automaton
 
-1. Validates and trims the input.
-2. Parses it into a `Formula`.
-3. Collects its atomic propositions.
-4. Builds the `Alphabet`.
-5. Creates the residual automaton builder with the configured semantics, normalizer, and equivalence checker.
-6. Builds and returns the `ResidualAutomaton`.
+The default configuration uses:
 
-The default constructor uses the Spot parser and Spot equivalence checker.
+- `SpotFormulaParser`
+- `DefaultResidualSemantics`
+- `Simplifier`
+- `BooleanCanonicalizer`
+- `SpotEquivalenceChecker`
 
-The second constructor allows the dependencies to be supplied explicitly, which is useful for focused tests.
+Dependencies can also be supplied explicitly for tests or alternate implementations.
 
 ## `Ltlf2RaApplication`
 
-A small facade around the service and formatter. Its `execute(String)` method returns the formatted residual automaton as a string.
+The facade exposes four main operations:
 
-## `ResidualAutomatonFormatter`
+```java
+build(formula)
+execute(formula)
+exportDot(formula)
+render(formula, format, output)
+```
 
-Turns a `ResidualAutomaton` into readable terminal text, including the alphabet, states, and transitions.
+`execute` produces terminal text.
 
-The application module is intentionally small. It is about wiring and presentation, not about implementing residual semantics itself.
+`exportDot` returns Graphviz DOT.
+
+`render` produces an image or other Graphviz-supported format.
+
+The application layer contains orchestration, not residual semantics.

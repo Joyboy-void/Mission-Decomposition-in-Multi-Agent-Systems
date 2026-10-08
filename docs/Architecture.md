@@ -1,53 +1,97 @@
 # Architecture
 
-The project is split into small modules so that the LTLf logic, Spot integration, application wiring, and CLI stay separate.
+## Overview
+
+The project is organized as small Maven modules with explicit responsibilities.
 
 ```text
 cli
-  -> ltlf2ra-app
-  -> ltlf2ra-spot
-  -> ltlf2ra-core
-  -> automata-core
+ ↓
+ltlf2ra-app
+ ├── ltlf2ra-core
+ │    └── automata-core
+ ├── ltlf2ra-spot
+ └── ltlf2ra-graphviz
 ```
 
-## Modules
+## Boundaries
 
-| Module | Role |
-|---|---|
-| `automata-core` | Generic automaton abstractions and edge types. |
-| `ltlf2ra-core` | LTLf formulas, alphabets, residual semantics, normalization, and residual automaton construction. |
-| `ltlf2ra-spot` | Spot parser/equivalence support through JNI. |
-| `ltlf2ra-app` | Wires the parser, residual builder, Spot equivalence, and output formatting into one application API. |
-| `cli` | Small command-line frontend. |
+### `automata-core`
 
-## Design rules
+Generic automaton abstractions. It contains no LTLf-specific semantics.
 
-`automata-core` does not know about LTLf.
+### `ltlf2ra-core`
 
-`ltlf2ra-core` does not know about Spot. It depends on `FormulaParser` and `FormulaEquivalenceChecker` abstractions instead.
+Owns the domain model and algorithm:
 
-`ltlf2ra-spot` provides the concrete Spot implementations.
+- formula AST
+- atomic propositions
+- valuations and alphabets
+- transformations
+- residual semantics
+- residual states
+- Residual Automaton construction
 
-`ltlf2ra-app` owns the default wiring of the components.
+It depends only on generic automata abstractions and its own interfaces.
 
-`cli` only handles arguments, exit codes, and terminal output.
+### `ltlf2ra-spot`
 
-## Current flow
+Provides concrete external implementations for parsing and semantic equivalence.
+
+### `ltlf2ra-graphviz`
+
+Provides visualization without making the core automaton depend on Graphviz.
+
+### `ltlf2ra-app`
+
+Wires the parser, semantics, normalization, equivalence checker and presentation components.
+
+### `cli`
+
+Provides the user-facing process and exit-code handling.
+
+## Main Data Flow
 
 ```text
-formula string
-    -> SpotFormulaParser
-    -> Formula
-    -> AtomicPropositionCollector
-    -> AtomicPropositionSet / Alphabet
-    -> ResidualAutomatonBuilder
-    -> ResidualAutomaton
-    -> ResidualAutomatonFormatter
-    -> terminal
+formula text
+    │
+    ▼
+FormulaParser
+    │
+    ▼
+Formula AST
+    │
+    ├── AtomicPropositionCollector
+    │
+    ▼
+AtomicPropositionSet
+    │
+    ▼
+Alphabet
+    │
+    ▼
+ResidualAutomatonBuilder
+    │
+    ├── ResidualSemantics
+    ├── Normalizer
+    └── FormulaEquivalenceChecker
+    │
+    ▼
+ResidualAutomaton
+    │
+    ├── Formatter
+    ├── DOT exporter
+    └── Graphviz renderer
 ```
 
-The builder explores reachable residual states with the supplied alphabet and uses normalization plus the supplied equivalence checker when registering states.
+## Design Principle
 
-## Planned direction
+External dependencies are accessed through interfaces. In particular:
 
-The current repository stops at LTLf to Residual Automaton conversion. Future work can add `agent-model`, `product-automaton`, and `decomposition` without changing the existing layer boundaries.
+```java
+FormulaParser
+        FormulaEquivalenceChecker
+ResidualSemantics
+```
+
+This keeps the algorithm testable and prevents Spot or Graphviz from becoming part of the LTLf core.

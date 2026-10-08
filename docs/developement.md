@@ -1,61 +1,100 @@
-# Development notes
+# Development
 
-## Requirements
+## Toolchain
 
-The project currently targets Java 23 and uses Maven for the multi-module build.
-
-The Spot module also needs:
-
-- CMake 3.20 or newer
-- Ninja
-- a C++ compiler
-- a Spot installation
-- `SPOT_HOME` pointing to that installation
-
-On Windows, the current PowerShell launcher also expects the MSYS2 UCRT64 runtime used by the native bridge.
-
-## Build
-
-From the repository root:
+The Maven project is compiled with:
 
 ```text
+Java 21
+```
+
+The native Spot/Graphviz workflow additionally uses:
+
+```text
+Maven
+CMake
+Ninja
+C++ compiler
+pkg-config
+```
+
+The setup scripts manage the project-local Spot and Graphviz installations.
+
+## Recommended Workflow
+
+```bash
+./scripts/setup.sh --check
+./scripts/setup.sh
+
 mvn clean test
-```
-
-For the complete packaged build:
-
-```text
 mvn clean package
+
+./scripts/run-cli.sh "F G p"
 ```
 
-When using IntelliJ, the bundled Maven works as well.
+On Windows, use the corresponding `.ps1` scripts.
 
-## Run the CLI
+## Build Artifacts
 
-After packaging:
+Important generated paths:
 
 ```text
-./run-cli.ps1 "F G p"
+cli/target/cli.jar
+ltlf2ra-spot/target/native-build/native/
+tools/spot/
+tools/graphviz/
+```
+
+`tools/` contains local dependency installations and should not be treated as source code.
+
+## Graphviz Development
+
+The Graphviz module has no Java Graphviz dependency. It invokes the external `dot` executable.
+
+For deterministic project-local behavior:
+
+```text
+GRAPHVIZ_HOME=<project>/tools/graphviz/install
 ```
 
 or:
 
 ```text
-./run-cli.sh "F G p"
+GRAPHVIZ_DOT=<path-to-dot>
 ```
 
-`SPOT_HOME` should already be set in the environment.
+The latter takes precedence.
 
-## Native build layout
+## Native Development
 
-The Spot module generates JNI headers under its Maven `target` directory and places the native bridge under:
+The Spot module uses:
 
 ```text
-ltlf2ra-spot/target/native-build/native
+Java → JNI → C++ → Spot
 ```
 
-The CLI JAR is written to:
+The CMake configuration obtains Spot from `SPOT_HOME`, avoiding hard-coded machine paths.
+
+## Tests
+
+Run all tests:
+
+```bash
+mvn clean test
+```
+
+Graphviz DOT generation is tested independently of the external Graphviz executable, which keeps the exporter test fast and deterministic.
+
+## Scope of the Current Version
+
+The implemented pipeline ends at:
 
 ```text
-cli/target/cli.jar
+LTLf
+  ↓
+Residual Automaton
+  ↓
+DOT / SVG / PNG
 ```
+
+Machine decomposition stages beyond this boundary are not part of the current implementation.

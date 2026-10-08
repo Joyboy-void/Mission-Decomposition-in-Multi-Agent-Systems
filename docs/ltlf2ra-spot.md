@@ -1,40 +1,69 @@
 # `ltlf2ra-spot`
 
-This module contains the integration with Spot. It is the only module that needs JNI and native Spot libraries.
+This module contains the native Spot integration.
 
-## Java classes
+## Responsibilities
+
+- Parse LTLf formulas using Spot
+- Print the project AST in Spot syntax
+- Check semantic equivalence of formulas
+- Expose Spot functionality to Java through JNI
+
+## Components
 
 ### `SpotFormulaParser`
 
-Implements `FormulaParser` by sending the input string through `SpotNativeBridge.parse`.
+Implements `FormulaParser` using the native bridge.
 
 ### `SpotFormulaPrinter`
 
-Converts the project's formula AST into Spot syntax. It handles the supported constants, propositions, Boolean operators, `X`, `F`, `G`, and `U`.
-
-The printer assumes proposition names are valid Spot identifiers.
+Converts supported AST nodes to Spot syntax.
 
 ### `SpotEquivalenceChecker`
 
-Implements `FormulaEquivalenceChecker`. It prints both formulas in Spot syntax and asks the native bridge whether they are equivalent.
+Implements `FormulaEquivalenceChecker` by asking Spot whether two formulas are semantically equivalent.
 
 ### `SpotNativeBridge`
 
-The Java/JNI boundary. It exposes two native operations:
+The Java/JNI boundary. The native API currently exposes parsing and equivalence operations.
 
-- `equivalent(left, right)`
-- `parse(input)`
+### `SpotNativeBridge.cpp`
 
-The static initializer loads `ltlf_spot_bridge`.
+Implements the JNI functions and calls Spot's native API.
 
-## Native side
+## Runtime
 
-`SpotNativeBridge.cpp` implements the JNI functions. `CMakeLists.txt` builds the shared library and locates Spot from `SPOT_HOME`.
+The project expects:
 
-## Runtime requirement
+```text
+SPOT_HOME
+```
 
-The native bridge needs the Spot installation and its native dependencies at runtime. The launcher scripts set the appropriate library search paths for the platform.
+to identify the Spot installation.
 
-## Why Spot is isolated
+The native bridge is built with CMake and placed under:
 
-Semantic equivalence is useful when two syntactically different residual formulas represent the same language. Keeping this implementation here means the LTLf core can use the same abstraction without depending directly on Spot.
+```text
+ltlf2ra-spot/target/native-build/native/
+```
+
+The launcher scripts configure the required native library search paths.
+
+## Why Spot Is Isolated
+
+Semantic equivalence is needed by residual-state registration, but the core algorithm should not depend on one particular equivalence engine.
+
+Therefore:
+
+```text
+ltlf2ra-core
+      │
+      ▼
+FormulaEquivalenceChecker
+      ▲
+      │
+ltlf2ra-spot
+      │
+      ▼
+     Spot
+```

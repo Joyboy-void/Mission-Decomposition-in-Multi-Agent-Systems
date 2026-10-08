@@ -1,42 +1,97 @@
-# `automata-core`
+# Architecture
 
-A small generic layer for automata that can be reused by different parts of the project.
+## Overview
 
-## Core interfaces
+The project is organized as small Maven modules with explicit responsibilities.
 
-### `Automaton<S, L>`
+```text
+cli
+ ↓
+ltlf2ra-app
+ ├── ltlf2ra-core
+ │    └── automata-core
+ ├── ltlf2ra-spot
+ └── ltlf2ra-graphviz
+```
 
-The base abstraction. An automaton exposes its states, initial state, final-state check, and outgoing edges.
+## Boundaries
 
-### `DeterministicAutomaton<S, L>`
+### `automata-core`
 
-Extends `Automaton` with lookup by state and label:
+Generic automaton abstractions. It contains no LTLf-specific semantics.
 
-- `hasTransition(state, label)`
-- `getDestination(state, label)`
+### `ltlf2ra-core`
 
-### `WeightedAutomaton<S, L, W>`
+Owns the domain model and algorithm:
 
-Extends `Automaton` for automata whose outgoing edges carry a weight of type `W`.
+- formula AST
+- atomic propositions
+- valuations and alphabets
+- transformations
+- residual semantics
+- residual states
+- Residual Automaton construction
 
-### `StateLabeledAutomaton<S, L, SL>`
+It depends only on generic automata abstractions and its own interfaces.
 
-Adds a label of type `SL` to each state.
+### `ltlf2ra-spot`
 
-## Edge types
+Provides concrete external implementations for parsing and semantic equivalence.
 
-### `Edge<S, L>`
+### `ltlf2ra-graphviz`
 
-Common read-only view of an edge: source, label, and destination.
+Provides visualization without making the core automaton depend on Graphviz.
 
-### `Transition<S, L>`
+### `ltlf2ra-app`
 
-A plain edge represented as a Java record.
+Wires the parser, semantics, normalization, equivalence checker and presentation components.
 
-### `WeightedTransition<S, L, W>`
+### `cli`
 
-A transition record with an additional `weight` field.
+Provides the user-facing process and exit-code handling.
 
-## Design note
+## Main Data Flow
 
-The generic layer intentionally does not impose rules such as positive weights or a particular state representation. Those constraints belong to the concrete automata that need them.
+```text
+formula text
+    │
+    ▼
+FormulaParser
+    │
+    ▼
+Formula AST
+    │
+    ├── AtomicPropositionCollector
+    │
+    ▼
+AtomicPropositionSet
+    │
+    ▼
+Alphabet
+    │
+    ▼
+ResidualAutomatonBuilder
+    │
+    ├── ResidualSemantics
+    ├── Normalizer
+    └── FormulaEquivalenceChecker
+    │
+    ▼
+ResidualAutomaton
+    │
+    ├── Formatter
+    ├── DOT exporter
+    └── Graphviz renderer
+```
+
+## Design Principle
+
+External dependencies are accessed through interfaces. In particular:
+
+```java
+FormulaParser
+FormulaEquivalenceChecker
+ResidualSemantics
+```
+
+This keeps the algorithm testable and prevents Spot or Graphviz from becoming part of the LTLf core.

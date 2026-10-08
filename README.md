@@ -4,7 +4,334 @@ A modular Java project for building LTLf Residual Automata and, later, using the
 
 The repository currently implements the LTLf-to-Residual-Automaton pipeline. The agent model, product automaton, DRES, and decomposition stages are planned as future modules.
 
-## Project Structure
+## Project Structure# Machine Decomposition
+
+A modular Java implementation for converting **LTLf specifications into Residual Automata (RA)**, with optional semantic equivalence checking through Spot and graph export/rendering through Graphviz.
+
+The current repository implements the **LTLf → Residual Automaton** stage of the larger machine-decomposition pipeline.
+
+## Features
+
+- LTLf formula AST and parser abstraction
+- Finite-trace residual semantics
+- Reachable Residual Automaton construction
+- Formula simplification and Boolean canonicalization
+- Semantic equivalence checking through Spot/JNI
+- Generic automata abstractions
+- Graphviz DOT export
+- Graphviz SVG and PNG rendering
+- Cross-platform setup and CLI launcher scripts
+
+## Architecture
+
+```text
+                    ┌─────────────────────┐
+                    │        cli          │
+                    │ command-line entry  │
+                    └──────────┬──────────┘
+                               │
+                    ┌──────────▼──────────┐
+                    │    ltlf2ra-app      │
+                    │ application wiring  │
+                    └──────┬────────┬─────┘
+                           │        │
+             ┌─────────────▼─┐   ┌──▼────────────────┐
+             │ ltlf2ra-core  │   │ ltlf2ra-graphviz  │
+             │ LTLf + RA     │   │ DOT + rendering   │
+             └──────┬────────┘   └─────────┬─────────┘
+                    │                      │
+             ┌──────▼────────┐             │
+             │ automata-core │             │
+             │ generic model │             │
+             └───────────────┘             │
+                                           │
+                              ┌────────────▼───────┐
+                              │      Graphviz       │
+                              └─────────────────────┘
+
+ltlf2ra-app ──► ltlf2ra-spot ──► Spot / JNI
+```
+
+The important dependency boundary is that `ltlf2ra-core` does **not** depend directly on Spot or Graphviz.
+
+## Project Modules
+
+| Module | Responsibility |
+|---|---|
+| `automata-core` | Generic automaton, edge and transition abstractions |
+| `ltlf2ra-core` | LTLf AST, alphabet, residual semantics and RA construction |
+| `ltlf2ra-spot` | Spot parser/equivalence checker and JNI bridge |
+| `ltlf2ra-graphviz` | DOT generation and Graphviz process integration |
+| `ltlf2ra-app` | Application-level orchestration and formatting |
+| `cli` | Executable command-line interface |
+
+## Requirements
+
+The project is compiled for **Java 21**.
+
+The native build additionally requires:
+
+- Maven
+- CMake
+- Ninja
+- C++ compiler
+- `pkg-config`
+- Spot **2.16**
+- Graphviz **16.1.0** when using the project-local Graphviz build
+- `libgd-dev`/equivalent GD development package for PNG support when building Graphviz from source
+
+The setup scripts install or build the project-local native dependencies where required.
+
+## Setup
+
+### Linux / WSL / macOS
+
+```bash
+./scripts/setup.sh
+```
+
+Check the environment without performing installation:
+
+```bash
+./scripts/setup.sh --check
+```
+
+The script can configure:
+
+```text
+tools/
+├── graphviz/
+├── spot/
+└── maven/        # only when project-local Maven is needed
+```
+
+It also persists the relevant environment configuration, including `SPOT_HOME` and `GRAPHVIZ_HOME`.
+
+### Windows
+
+```powershell
+.\scripts\setup.ps1
+```
+
+Check only:
+
+```powershell
+.\scripts\setup.ps1 -Check
+```
+
+The Windows launcher uses the configured Spot/MSYS2 environment and the project-local Graphviz installation when available.
+
+## Build
+
+Run the complete test suite:
+
+```bash
+mvn clean test
+```
+
+Create the packaged CLI:
+
+```bash
+mvn clean package
+```
+
+The executable JAR is produced at:
+
+```text
+cli/target/cli.jar
+```
+
+The Spot JNI bridge is built automatically during the Maven build.
+
+## CLI
+
+Use the supplied launchers so that native library paths are configured correctly.
+
+### Text output
+
+```bash
+./scripts/run-cli.sh "F G p"
+```
+
+```powershell
+.\scripts\run-cli.ps1 "F G p"
+```
+
+### DOT output
+
+```bash
+./scripts/run-cli.sh --dot "p | X(q & p)"
+```
+
+This prints Graphviz DOT source to stdout.
+
+### SVG
+
+```bash
+./scripts/run-cli.sh --svg output/automaton/example.svg "p | X(q & p)"
+```
+
+### PNG
+
+```bash
+./scripts/run-cli.sh --png output/automaton/example.png "p | X(q & p)"
+```
+
+The renderer creates missing parent directories automatically.
+
+### CLI syntax
+
+```text
+./scripts/run-cli.sh "<LTLf formula>"
+./scripts/run-cli.sh --dot "<LTLf formula>"
+./scripts/run-cli.sh --svg <output.svg> "<LTLf formula>"
+./scripts/run-cli.sh --png <output.png> "<LTLf formula>"
+```
+
+Atomic propositions are discovered automatically from the formula.
+
+## Residual Automaton Pipeline
+
+```text
+LTLf formula
+     │
+     ▼
+Parse formula
+     │
+     ▼
+Collect atomic propositions
+     │
+     ▼
+Construct alphabet
+     │
+     ▼
+Explore reachable residuals
+     │
+     ├── simplify
+     ├── canonicalize
+     └── semantic equivalence check
+     │
+     ▼
+Residual Automaton
+     │
+     ├── text formatter
+     ├── DOT exporter
+     └── Graphviz renderer
+          ├── SVG
+          └── PNG
+```
+
+Each automaton state represents a residual formula. The initial state represents the original specification, and a state is accepting when its residual formula is `⊤`.
+
+Transition labels are valuations over the formula's atomic propositions. Equivalent residual formulas are merged using the configured equivalence checker.
+
+## Graphviz
+
+`ltlf2ra-graphviz` deliberately separates graph construction from rendering:
+
+- `ResidualAutomatonDotExporter` converts an automaton to DOT.
+- `GraphvizExecutable` resolves the `dot` executable.
+- `GraphvizRenderer` invokes Graphviz and writes the requested output format.
+
+Executable resolution is:
+
+1. `GRAPHVIZ_DOT`, if explicitly set
+2. `dot` found on `PATH`
+3. `$GRAPHVIZ_HOME/bin/dot` (or `dot.exe` on Windows)
+
+The DOT exporter:
+
+- renders the graph left-to-right
+- marks accepting states with double circles
+- adds an initial-state arrow
+- displays state IDs separately from residual formulas
+- groups transitions with the same source and destination
+- combines multiple valuations into one edge label
+
+## Native Spot Integration
+
+Spot is isolated behind the core interfaces:
+
+```java
+FormulaParser
+FormulaEquivalenceChecker
+```
+
+The Java/native path is:
+
+```text
+Java
+  │
+  ▼
+SpotNativeBridge
+  │ JNI
+  ▼
+SpotNativeBridge.cpp
+  │
+  ▼
+Spot 2.16
+```
+
+The native library is generated under:
+
+```text
+ltlf2ra-spot/target/native-build/native/
+```
+
+The launch scripts configure the runtime library paths automatically.
+
+## Testing
+
+Run all module tests with:
+
+```bash
+mvn clean test
+```
+
+Tests cover the AST, transformations, alphabet/valuation model, residual semantics, automaton construction, Spot integration, application wiring and Graphviz DOT generation.
+
+## Repository Layout
+
+```text
+machine-decomposition/
+├── automata-core/
+├── ltlf2ra-core/
+├── ltlf2ra-spot/
+├── ltlf2ra-graphviz/
+├── ltlf2ra-app/
+├── cli/
+├── scripts/
+├── docs/
+├── output/
+├── tools/                 # local/generated dependencies
+└── pom.xml
+```
+
+## Documentation
+
+- [Architecture](docs/architecture.md)
+- [Core LTLf / Residual Automaton](docs/ltlf2ra-core.md)
+- [Spot Integration](docs/ltlf2ra-spot.md)
+- [Graphviz Integration](docs/ltlf2ra-graphviz.md)
+- [Application Layer](docs/ltlf2ra-app.md)
+- [CLI](docs/cli.md)
+- [Automata Core](docs/automata-core.md)
+- [Development](docs/development.md)
+
+## Scope
+
+Implemented now:
+
+```text
+LTLf specification
+       ↓
+Residual Automaton
+       ↓
+DOT / SVG / PNG
+```
+
+The repository is structured so that later machine-decomposition components can be added without coupling them to the LTLf or visualization implementations.
+
 
 ```text
 machine-decomposition/

@@ -1,122 +1,107 @@
 # `ltlf2ra-core`
 
-This module contains the LTLf model and the residual automaton algorithm. It has no dependency on Spot.
+The core module implements LTLf formulas and construction of a Residual Automaton.
 
-## Formula model
+## Formula Model
 
-The AST supports:
+Supported operators:
 
-`TrueFormula`, `FalseFormula`, atomic propositions, `Not`, `Next`, `Eventually`, `Always`, `And`, `Or`, and `Until`.
+```text
+⊤, ⊥
+atomic propositions
+¬
+X
+F
+G
+∧
+∨
+U
+```
 
-All formulas implement `Formula` and support the visitor pattern through `FormulaVisitor<T>`.
-
-### AST helpers
-
-- `UnaryFormula` stores one operand for `Not`, `Next`, `Eventually`, and `Always`.
-- `BinaryFormula` stores two operands for `And`, `Or`, and `Until`.
-- `AtomicProposition` stores the proposition name.
+The AST uses `Formula` and the visitor pattern through `FormulaVisitor<T>`.
 
 ## Alphabet
 
-### `AtomicPropositionSet`
+`AtomicPropositionSet` stores the propositions of a formula in deterministic order.
 
-Stores propositions in deterministic name order and assigns each proposition an index.
+`Valuation` represents one truth assignment.
 
-### `Valuation`
+`Alphabet` enumerates all valuations of the proposition set. Its size is:
 
-Represents one truth assignment over an `AtomicPropositionSet`. Internally it uses a `BitSet`.
+```text
+2^|AP|
+```
 
-### `Alphabet`
+## Residual Semantics
 
-Enumerates all valuations for a proposition set. Its size is `2^|AP|` and the implementation limits the count to values that fit in a Java `long`.
+`ResidualSemantics` defines:
 
-## Analysis
+```java
+residual(formula, valuation)
+```
 
-### `AtomicPropositionCollector`
+`DefaultResidualSemantics` delegates to `ResidualVisitor`.
 
-Walks a formula and returns the set of atomic propositions occurring in it.
+Examples:
 
-### `FormulaSizeVisitor`
+```text
+Res(X φ, a) = φ
 
-Computes the size of a formula tree.
+Res(F φ, a) = Res(φ, a) ∨ F φ
 
-## Parsing
+Res(G φ, a) = Res(φ, a) ∧ G φ
 
-### `FormulaParser`
-
-A small abstraction for turning input text into a `Formula`. The core module only defines the interface; the current implementation is provided by Spot.
-
-## Residual semantics
-
-### `ResidualSemantics`
-
-Defines `residual(formula, valuation)`.
-
-### `DefaultResidualSemantics`
-
-Delegates the actual work to `ResidualVisitor`.
-
-### `ResidualVisitor`
-
-Implements the one-step residual rules for the supported LTLf operators. For example:
-
-- `Res(X φ, a) = φ`
-- `Res(F φ, a) = Res(φ, a) ∨ F φ`
-- `Res(G φ, a) = Res(φ, a) ∧ G φ`
-- `Res(φ U ψ, a) = Res(ψ, a) ∨ (Res(φ, a) ∧ (φ U ψ))`
+Res(φ U ψ, a)
+  = Res(ψ, a) ∨ (Res(φ, a) ∧ (φ U ψ))
+```
 
 ## Normalization
 
-### `FormulaTransformer`
+The default normalization pipeline is:
 
-Common interface for formula transformations.
+```text
+Simplifier
+    ↓
+BooleanCanonicalizer
+```
 
-### `Simplifier`
+This removes local redundancies and gives equivalent Boolean structures a deterministic representation before state lookup.
 
-Performs local structural simplifications such as `¬⊤ = ⊥`, `¬¬φ = φ`, and the usual `And`/`Or` identities.
+## Residual States
 
-### `BooleanCanonicalizer`
+A `ResidualState` contains:
 
-Provides deterministic ordering for Boolean structure.
+- integer ID
+- canonical residual formula
 
-### `Normalizer`
+`ResidualStateRegistry` maps residual formulas to states.
 
-Runs an ordered list of `FormulaTransformer`s as a pipeline.
+Lookup first uses normalized structural representation and can then use `FormulaEquivalenceChecker` to merge semantically equivalent formulas.
 
-### `FormulaComparator`
+## Automaton Construction
 
-Provides a deterministic ordering over formula structures.
+`ResidualAutomatonBuilder` performs a reachable-state exploration.
 
-## Residual automaton
+For every discovered state:
 
-### `ResidualState`
+1. iterate over every alphabet valuation
+2. compute the one-step residual
+3. normalize the residual
+4. find or create its state
+5. add the transition
+6. continue until no new state is discovered
 
-A state has an integer ID and one canonical residual formula.
+The resulting automaton is deterministic and total over its alphabet.
 
-### `ResidualStateRegistry`
+A state is accepting iff its residual formula is `TrueFormula`.
 
-Maps formulas to states. It first tries normalized structural lookup and then falls back to the supplied `FormulaEquivalenceChecker` for semantic equivalence.
+## Independence from Spot
 
-### `StateLookupResult`
-
-Returns the state found or created together with a boolean indicating whether a new state was created.
-
-### `ResidualAutomatonBuilder`
-
-Builds a reachable residual automaton with BFS. For every state, it evaluates every valuation in the alphabet, computes the residual, registers the resulting state, and adds the transition.
-
-### `ResidualAutomaton`
-
-The concrete deterministic automaton. Its labels are `Valuation`s and its states are `ResidualState`s. The transition relation is total over its alphabet. A state is accepting when its formula is `TrueFormula`.
-
-## Semantics boundary
-
-The core module defines:
+The module defines abstractions rather than choosing external implementations:
 
 ```java
 FormulaParser
-FormulaEquivalenceChecker
-ResidualSemantics
+        FormulaEquivalenceChecker
 ```
 
-but does not choose external implementations. This is what lets Spot stay in its own module.
+This is the main boundary that keeps the residual algorithm independent from the Spot integration.

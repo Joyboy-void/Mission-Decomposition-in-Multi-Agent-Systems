@@ -1,40 +1,68 @@
 # `cli`
 
-The CLI is deliberately thin. It does not know how Spot or the residual automaton builder works.
+The CLI is the user-facing entry point.
 
-## `Main`
+## Usage
 
-Creates a `CommandLineApplication`, passes `System.in`/`System.out`/`System.err` equivalents through the application boundary, and exits with the returned status when necessary.
+```text
+./scripts/run-cli.sh "<LTLf formula>"
+./scripts/run-cli.sh --dot "<LTLf formula>"
+./scripts/run-cli.sh --svg <output.svg> "<LTLf formula>"
+./scripts/run-cli.sh --png <output.png> "<LTLf formula>"
+```
 
-## `CommandLineApplication`
+On Windows:
 
-Handles:
+```text
+.\scripts\run-cli.ps1 "<LTLf formula>"
+```
 
-- missing arguments
-- `--help`
-- joining formula arguments into one formula string
-- calling `Ltlf2RaApplication`
-- printing the result
-- mapping failures to an exit code
+## Examples
 
-Exit codes:
+```bash
+./scripts/run-cli.sh "F G p"
+
+./scripts/run-cli.sh --dot "p | X(q & p)"
+
+./scripts/run-cli.sh \
+  --svg output/automaton/example.svg \
+  "p | X(q & p)"
+
+./scripts/run-cli.sh \
+  --png output/automaton/example.png \
+  "p | X(q & p)"
+```
+
+Formula arguments are joined automatically, so quoting the complete formula is recommended but not required by the parser wrapper.
+
+Atomic propositions are inferred from the formula.
+
+## Modes
+
+| Mode | Result |
+|---|---|
+| default | formatted Residual Automaton |
+| `--dot` | DOT source |
+| `--svg` | rendered SVG file |
+| `--png` | rendered PNG file |
+
+## Exit Codes
 
 | Code | Meaning |
 |---:|---|
-| `0` | Success or help message |
-| `1` | Invalid command-line usage |
-| `2` | Application/runtime error while processing the formula |
+| `0` | success / help |
+| `1` | invalid CLI usage |
+| `2` | runtime/application error |
 
-## Example
+## Launcher Responsibility
 
-```text
-./run-cli.sh "F G p"
-```
-
-or on Windows PowerShell:
+The scripts do more than invoke Java. They configure the native runtime:
 
 ```text
-./run-cli.ps1 "F G p"
+Spot JNI library
+Spot libraries
+Graphviz
+MSYS2 UCRT64   (Windows)
 ```
 
-The CLI accepts a formula only; atomic propositions are discovered automatically.
+For this reason, the launcher scripts are preferred over invoking `java -jar cli/target/cli.jar` directly.
