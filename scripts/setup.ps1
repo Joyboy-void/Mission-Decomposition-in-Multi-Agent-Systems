@@ -17,6 +17,11 @@ $ProjectRoot = Split-Path -Parent $PSScriptRoot
 
 $JavaMinMajor = 21
 
+# Graphviz
+#
+# Reuse a globally installed dot executable when available.
+# Otherwise install Graphviz 16.1.0 under tools\graphviz.
+
 # Spot
 
 $SpotVersion = "2.16"
@@ -43,6 +48,17 @@ $MavenBin = Join-Path $MavenInstallDir "bin"
 $MavenExecutable = Join-Path $MavenBin "mvn.cmd"
 
 $MavenUrl = "https://dlcdn.apache.org/maven/maven-3/$MavenVersion/binaries/apache-maven-$MavenVersion-bin.zip"
+
+# Graphviz
+
+$GraphvizVersion = "16.1.0"
+$GraphvizDir = Join-Path $ProjectRoot "tools\graphviz"
+$GraphvizDownloadDir = Join-Path $GraphvizDir "downloads"
+$GraphvizArchive = Join-Path $GraphvizDownloadDir "graphviz-$GraphvizVersion-win64.zip"
+$GraphvizHome = Join-Path $GraphvizDir "install"
+$GraphvizBin = Join-Path $GraphvizHome "bin"
+$GraphvizDot = Join-Path $GraphvizBin "dot.exe"
+$GraphvizUrl = "https://gitlab.com/api/v4/projects/4207231/packages/generic/graphviz-releases/$GraphvizVersion/windows_10_cmake_Release_Graphviz-$GraphvizVersion-win64.zip"
 
 # MSYS2
 
@@ -492,6 +508,98 @@ function Install-MsysMissingPackages {
     }
 }
 
+# Graphviz checks
+
+function Get-GraphvizDot {
+    $command = Get-Command "dot.exe" -ErrorAction SilentlyContinue
+    if ($null -ne $command) {
+        return $command.Source
+    }
+
+    if (Test-Path $GraphvizDot) {
+        return $GraphvizDot
+    }
+
+    return $null
+}
+
+function Graphviz-LocalInstalled {
+    return Test-Path $GraphvizDot
+}
+
+function Graphviz-Installed {
+    return $null -ne (Get-GraphvizDot)
+}
+
+function Install-Graphviz {
+    New-Item -ItemType Directory -Force -Path $GraphvizDownloadDir, $GraphvizHome | Out-Null
+
+    # Do not execute a downloaded Graphviz installer. Graphviz officially
+    # publishes a Windows ZIP containing dot.exe and all required libraries;
+    # extracting it also keeps the dependency local to this repository.
+    if (-not (Test-Path $GraphvizArchive)) {
+        Say ""
+        Say "Downloading Graphviz $GraphvizVersion (Windows ZIP)..."
+        Invoke-WebRequest -Uri $GraphvizUrl -OutFile $GraphvizArchive
+    }
+    else {
+        Say ""
+        Say "Graphviz archive already exists."
+        Say "Reusing: $GraphvizArchive"
+    }
+
+    Say ""
+    Say "Installing Graphviz $GraphvizVersion into the project..."
+
+    if (Test-Path $GraphvizHome) {
+        Get-ChildItem -Force $GraphvizHome | Remove-Item -Recurse -Force
+    }
+
+    $extractDir = Join-Path $GraphvizDir "_extract"
+    if (Test-Path $extractDir) {
+        Remove-Item -Recurse -Force $extractDir
+    }
+    New-Item -ItemType Directory -Force -Path $extractDir | Out-Null
+
+    try {
+        Expand-Archive -Path $GraphvizArchive -DestinationPath $extractDir -Force
+
+        $dotCandidates = @(Get-ChildItem -Path $extractDir -Filter "dot.exe" -File -Recurse)
+        if ($dotCandidates.Count -eq 0) {
+            Fail "Graphviz archive was extracted, but dot.exe was not found."
+        }
+
+        $dotSource = $dotCandidates[0].Directory.Parent.FullName
+        Copy-Item -Path (Join-Path $dotSource "*") -Destination $GraphvizHome -Recurse -Force
+    }
+    finally {
+        if (Test-Path $extractDir) {
+            Remove-Item -Recurse -Force $extractDir
+        }
+    }
+
+    if (-not (Test-Path $GraphvizDot)) {
+        # Some Graphviz archives have one extra top-level directory. Locate
+        # dot.exe and normalize that directory into tools\graphviz\install.
+        $dot = Get-ChildItem -Path $GraphvizHome -Filter "dot.exe" -File -Recurse | Select-Object -First 1
+        if ($dot) {
+            $sourceBin = $dot.Directory.FullName
+            $sourceRoot = Split-Path -Parent $sourceBin
+            $items = Get-ChildItem -Force $sourceRoot
+            foreach ($item in $items) {
+                Move-Item -Path $item.FullName -Destination $GraphvizHome -Force
+            }
+        }
+    }
+
+    if (-not (Test-Path $GraphvizDot)) {
+        Fail "Graphviz installation completed, but dot.exe was not found at $GraphvizDot"
+    }
+
+    Say "Graphviz $GraphvizVersion installed successfully."
+    Say "Graphviz home: $GraphvizHome"
+}
+
 # General dependency check
 
 function Check-Tools {
@@ -503,6 +611,10 @@ function Check-Tools {
 
     if (-not (Maven-Installed)) {
         $missing += "Maven"
+    }
+
+    if (-not (Graphviz-Installed)) {
+        $missing += "Graphviz"
     }
 
     if (-not (Has-Command "cmake")) {
@@ -559,6 +671,11 @@ function Install-Tools {
     # Maven
     if (-not (Maven-Installed)) {
         Install-Maven-Interactively
+    }
+
+    # Graphviz
+    if (-not (Graphviz-Installed)) {
+        Install-Graphviz
     }
 
     # CMake
@@ -771,6 +888,10 @@ function Persist-Environment {
 
     Add-UserPath (Join-Path $selectedJavaHome "bin")
     Add-UserPath (Join-Path $SpotHome "bin")
+
+    if (Graphviz-LocalInstalled) {
+        Add-UserPath $GraphvizBin
+    }
     Add-UserPath $Msys2Ucrt
 
     if (Test-Path $Msys2UsrBin) {
@@ -783,6 +904,10 @@ function Persist-Environment {
 
     $env:JAVA_HOME = $selectedJavaHome
     $env:SPOT_HOME = $SpotHome
+
+    if (Graphviz-LocalInstalled) {
+        $env:GRAPHVIZ_HOME = $GraphvizHome
+    }
     $env:MSYS2_HOME = $Msys2Home
 
     if (Test-Path $MavenInstallDir) {
@@ -817,6 +942,15 @@ if ($Check) {
     }
     else {
         Say "Maven       : MISSING"
+    }
+
+    $graphvizDot = Get-GraphvizDot
+    if ($null -ne $graphvizDot) {
+        Say "Graphviz    : OK"
+        Say "Graphviz dot: $graphvizDot"
+    }
+    else {
+        Say "Graphviz    : MISSING"
     }
 
     if (Has-Command "cmake") {
@@ -968,6 +1102,10 @@ Say "Setup completed successfully."
 Say "========================================"
 Say "JAVA_HOME : $env:JAVA_HOME"
 Say "SPOT_HOME : $env:SPOT_HOME"
+$graphvizDot = Get-GraphvizDot
+if ($graphvizDot) {
+    Say "Graphviz  : $graphvizDot"
+}
 if ($env:MAVEN_HOME) {
     Say "MAVEN_HOME: $env:MAVEN_HOME"
 }
