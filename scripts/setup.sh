@@ -1225,12 +1225,10 @@ install_linux_dependencies() {
     # libtool
 
     if ! command_exists libtool; then
-
         install_one \
             "libtool" \
             sh -c \
-            'sudo apt-get update && sudo apt-get install -y libtool'
-
+            'sudo apt-get update && sudo apt-get install -y libtool libtool-bin'
     fi
 
     # GD development headers/libraries.

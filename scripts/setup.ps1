@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [switch]$Check
+[switch]$Check
 )
 
 $ErrorActionPreference = "Stop"
@@ -63,10 +63,10 @@ $GraphvizUrl = "https://gitlab.com/api/v4/projects/4207231/packages/generic/grap
 # MSYS2
 
 $Msys2Home = if ($env:MSYS2_HOME) {
-    $env:MSYS2_HOME
+$env:MSYS2_HOME
 }
 else {
-    "C:\msys64"
+"C:\msys64"
 }
 
 $Msys2Bash = Join-Path $Msys2Home "usr\bin\bash.exe"
@@ -76,329 +76,334 @@ $Msys2Ucrt = Join-Path $Msys2Home "ucrt64\bin"
 # Utility functions
 
 function Say([string]$Text) {
-    Write-Host $Text
+Write-Host $Text
 }
 
 function Fail([string]$Text) {
-    Write-Error $Text
-    exit 1
+Write-Error $Text
+exit 1
 }
 
 function Has-Command([string]$Name) {
-    return $null -ne (Get-Command $Name -ErrorAction SilentlyContinue)
+return $null -ne (Get-Command $Name -ErrorAction SilentlyContinue)
 }
 
 function Refresh-Path {
-    $machinePath = [Environment]::GetEnvironmentVariable("Path", "Machine")
-    $userPath = [Environment]::GetEnvironmentVariable("Path", "User")
+$machinePath = [Environment]::GetEnvironmentVariable("Path", "Machine")
+$userPath = [Environment]::GetEnvironmentVariable("Path", "User")
 
-    $parts = @()
+$parts = @()
 
-    if ($machinePath) {
-        $parts += $machinePath
-    }
+if ($machinePath) {
+$parts += $machinePath
+}
 
-    if ($userPath) {
-        $parts += $userPath
-    }
+if ($userPath) {
+$parts += $userPath
+}
 
-    $env:Path = $parts -join ";"
+$env:Path = $parts -join ";"
 }
 
 # Java detection
 
 function Get-JavaMajorFromHome([string]$JavaHome) {
-    if ([string]::IsNullOrWhiteSpace($JavaHome)) {
-        return 0
-    }
+if ([string]::IsNullOrWhiteSpace($JavaHome)) {
+return 0
+}
 
-    $javaExe = Join-Path $JavaHome "bin\java.exe"
-    $javacExe = Join-Path $JavaHome "bin\javac.exe"
+$javaExe = Join-Path $JavaHome "bin\java.exe"
+$javacExe = Join-Path $JavaHome "bin\javac.exe"
 
-    if (-not (Test-Path $javaExe)) {
-        return 0
-    }
+if (-not (Test-Path $javaExe)) {
+return 0
+}
 
-    if (-not (Test-Path $javacExe)) {
-        return 0
-    }
+if (-not (Test-Path $javacExe)) {
+return 0
+}
 
-    $javaOutput = (
-    cmd.exe /c "`"$javaExe`" -version 2>&1"
-    ) | Out-String
+$javaOutput = (
+cmd.exe /c "`"$javaExe`" -version 2>&1"
+) | Out-String
 
-    $match = [regex]::Match(
-            $javaOutput,
-            'version\s+"([0-9]+)'
-    )
+$match = [regex]::Match(
+$javaOutput,
+'version\s+"([0-9]+)'
+)
 
-    if (-not $match.Success) {
-        return 0
-    }
+if (-not $match.Success) {
+return 0
+}
 
-    return [int]$match.Groups[1].Value
+return [int]$match.Groups[1].Value
 }
 
 function Get-JavaHomeFromCommand([string]$CommandName) {
-    $command = Get-Command $CommandName -ErrorAction SilentlyContinue
+$command = Get-Command $CommandName -ErrorAction SilentlyContinue
 
-    if ($null -eq $command) {
-        return $null
-    }
+if ($null -eq $command) {
+return $null
+}
 
-    $source = $command.Source
+$source = $command.Source
 
-    if ([string]::IsNullOrWhiteSpace($source)) {
-        return $null
-    }
+if ([string]::IsNullOrWhiteSpace($source)) {
+return $null
+}
 
-    $binDir = Split-Path -Parent $source
-    $detectedJavaHome = Split-Path -Parent $binDir
+$binDir = Split-Path -Parent $source
+$detectedJavaHome = Split-Path -Parent $binDir
 
-    if ((Test-Path (Join-Path $detectedJavaHome "bin\java.exe")) -and
-            (Test-Path (Join-Path $detectedJavaHome "bin\javac.exe"))) {
-        return $detectedJavaHome
-    }
+if ((Test-Path (Join-Path $detectedJavaHome "bin\java.exe")) -and
+(Test-Path (Join-Path $detectedJavaHome "bin\javac.exe"))) {
+return $detectedJavaHome
+}
 
-    return $null
+return $null
 }
 
 function Get-UsableJavaHome {
-    $candidates = @()
+$candidates = @()
 
-    if ($env:JAVA_HOME) {
-        $candidates += $env:JAVA_HOME
-    }
+if ($env:JAVA_HOME) {
+$candidates += $env:JAVA_HOME
+}
 
-    $javacHome = Get-JavaHomeFromCommand "javac"
-    if ($javacHome) {
-        $candidates += $javacHome
-    }
+$javacHome = Get-JavaHomeFromCommand "javac"
+if ($javacHome) {
+$candidates += $javacHome
+}
 
-    $javaHome = Get-JavaHomeFromCommand "java"
-    if ($javaHome) {
-        $candidates += $javaHome
-    }
+$javaHome = Get-JavaHomeFromCommand "java"
+if ($javaHome) {
+$candidates += $javaHome
+}
 
-    foreach ($candidate in $candidates) {
-        if ([string]::IsNullOrWhiteSpace($candidate)) {
-            continue
-        }
+foreach ($candidate in $candidates) {
+if ([string]::IsNullOrWhiteSpace($candidate)) {
+continue
+}
 
-        $fullCandidate = [IO.Path]::GetFullPath($candidate)
-        $major = Get-JavaMajorFromHome $fullCandidate
+$fullCandidate = [IO.Path]::GetFullPath($candidate)
+$major = Get-JavaMajorFromHome $fullCandidate
 
-        if ($major -ge $JavaMinMajor) {
-            return $fullCandidate
-        }
-    }
+if ($major -ge $JavaMinMajor) {
+return $fullCandidate
+}
+}
 
-    return $null
+return $null
 }
 
 function Test-Java21Plus {
-    return $null -ne (Get-UsableJavaHome)
+return $null -ne (Get-UsableJavaHome)
 }
 
 function Select-Java21Plus {
-    $javaHome = Get-UsableJavaHome
+$javaHome = Get-UsableJavaHome
 
-    if ($null -eq $javaHome) {
-        return $null
-    }
+if ($null -eq $javaHome) {
+return $null
+}
 
-    $env:JAVA_HOME = $javaHome
+$env:JAVA_HOME = $javaHome
 
-    $javaBin = Join-Path $javaHome "bin"
+$javaBin = Join-Path $javaHome "bin"
 
-    if ($env:Path -notlike "*$javaBin*") {
-        $env:Path = "$javaBin;$env:Path"
-    }
+if ($env:Path -notlike "*$javaBin*") {
+$env:Path = "$javaBin;$env:Path"
+}
 
-    return $javaHome
+return $javaHome
 }
 
 # User PATH management
 
 function Add-UserPath([string]$Path) {
-    if (-not (Test-Path $Path)) {
-        return
-    }
+if (-not (Test-Path $Path)) {
+return
+}
 
-    $currentUserPath = [Environment]::GetEnvironmentVariable("Path", "User")
+$currentUserPath = [Environment]::GetEnvironmentVariable("Path", "User")
 
-    $parts = @(
-    $currentUserPath -split ';' |
-            Where-Object {
-                $_ -and $_.Trim()
-            }
-    )
+$parts = @(
+$currentUserPath -split ';' |
+Where-Object {
+$_ -and $_.Trim()
+}
+)
 
-    $alreadyPresent = $false
+$alreadyPresent = $false
 
-    foreach ($part in $parts) {
-        if ($part.TrimEnd('\') -ieq $Path.TrimEnd('\')) {
-            $alreadyPresent = $true
-            break
-        }
-    }
+foreach ($part in $parts) {
+if ($part.TrimEnd('\') -ieq $Path.TrimEnd('\')) {
+$alreadyPresent = $true
+break
+}
+}
 
-    if (-not $alreadyPresent) {
-        $parts += $Path
+if (-not $alreadyPresent) {
+$parts += $Path
 
-        [Environment]::SetEnvironmentVariable(
-                "Path",
-                ($parts -join ";"),
-                "User"
-        )
-    }
+[Environment]::SetEnvironmentVariable(
+"Path",
+($parts -join ";"),
+"User"
+)
+}
 
-    $currentParts = @(
-    $env:Path -split ';' |
-            Where-Object {
-                $_ -and $_.Trim()
-            }
-    )
+$currentParts = @(
+$env:Path -split ';' |
+Where-Object {
+$_ -and $_.Trim()
+}
+)
 
-    $currentPresent = $false
+$currentPresent = $false
 
-    foreach ($part in $currentParts) {
-        if ($part.TrimEnd('\') -ieq $Path.TrimEnd('\')) {
-            $currentPresent = $true
-            break
-        }
-    }
+foreach ($part in $currentParts) {
+if ($part.TrimEnd('\') -ieq $Path.TrimEnd('\')) {
+$currentPresent = $true
+break
+}
+}
 
-    if (-not $currentPresent) {
-        $env:Path = "$Path;$env:Path"
-    }
+if (-not $currentPresent) {
+$env:Path = "$Path;$env:Path"
+}
 }
 
 # WinGet
 
 function Install-Winget([string]$Id, [string]$Name) {
-    if (-not (Has-Command "winget")) {
-        Fail "winget was not found. Install the missing dependency manually."
-    }
+if (-not (Has-Command "winget")) {
+Fail "winget was not found. Install the missing dependency manually."
+}
 
-    Say ""
-    Say "Installing $Name using WinGet..."
-    Say "Package: $Id"
+Say ""
+Say "Installing $Name using WinGet..."
+Say "Package: $Id"
 
-    winget source update
+winget source update
 
-    winget install `
+winget install `
         --id $Id `
         --exact `
         --accept-source-agreements `
         --accept-package-agreements
 
-    if ($LASTEXITCODE -ne 0) {
-        Fail "WinGet failed while installing $Name ($Id)."
-    }
+if ($LASTEXITCODE -ne 0) {
+Fail "WinGet failed while installing $Name ($Id)."
+}
 
-    Refresh-Path
+Refresh-Path
 }
 
 function Ask-Install-Winget([string]$Id, [string]$Name) {
-    $answer = Read-Host "Missing dependency: $Name. Install it with WinGet? [Y/n]"
+$answer = Read-Host "Missing dependency: $Name. Install it with WinGet? [Y/n]"
 
-    if ([string]::IsNullOrWhiteSpace($answer)) {
-        $answer = "Y"
-    }
+if ([string]::IsNullOrWhiteSpace($answer)) {
+$answer = "Y"
+}
 
-    if ($answer -notmatch '^[Yy]$') {
-        Fail "Setup cancelled."
-    }
+if ($answer -notmatch '^[Yy]$') {
+Fail "Setup cancelled."
+}
 
-    Install-Winget $Id $Name
+Install-Winget $Id $Name
 }
 
 # Maven
 
 function Get-MavenExecutable {
-    if (Test-Path $MavenExecutable) {
-        return $MavenExecutable
-    }
+if (Test-Path $MavenExecutable) {
+return $MavenExecutable
+}
 
-    $globalMaven = Get-Command "mvn.cmd" -ErrorAction SilentlyContinue
+$globalMaven = Get-Command "mvn.cmd" -ErrorAction SilentlyContinue
 
-    if ($null -ne $globalMaven) {
-        return $globalMaven.Source
-    }
+if ($null -ne $globalMaven) {
+return $globalMaven.Source
+}
 
-    return $null
+return $null
 }
 
 function Maven-Installed {
-    return $null -ne (Get-MavenExecutable)
+return $null -ne (Get-MavenExecutable)
 }
 
 function Install-Maven {
-    New-Item `
+New-Item `
         -ItemType Directory `
         -Force `
         -Path `
             (Join-Path $MavenDir "downloads"), `
             $MavenHome |
-            Out-Null
+Out-Null
 
-    if (-not (Test-Path $MavenArchive)) {
-        Say ""
-        Say "Downloading Apache Maven $MavenVersion..."
+if (-not (Test-Path $MavenArchive)) {
+Say ""
+Say "Downloading Apache Maven $MavenVersion..."
 
-        Invoke-WebRequest `
+Invoke-WebRequest `
             -Uri $MavenUrl `
             -OutFile $MavenArchive
-    }
-    else {
-        Say ""
-        Say "Maven archive already exists."
-        Say "Reusing: $MavenArchive"
-    }
+}
+else {
+Say ""
+Say "Maven archive already exists."
+Say "Reusing: $MavenArchive"
+}
 
-    if (-not (Test-Path $MavenExecutable)) {
-        Say ""
-        Say "Extracting Apache Maven $MavenVersion..."
+if (-not (Test-Path $MavenExecutable)) {
+Say ""
+Say "Extracting Apache Maven $MavenVersion..."
 
-        Expand-Archive `
+Expand-Archive `
             -Path $MavenArchive `
             -DestinationPath $MavenHome `
             -Force
-    }
+}
 
-    if (-not (Test-Path $MavenExecutable)) {
-        Fail "Maven installation failed. Expected executable: $MavenExecutable"
-    }
+if (-not (Test-Path $MavenExecutable)) {
+Fail "Maven installation failed. Expected executable: $MavenExecutable"
+}
 
-    Add-UserPath $MavenBin
+Add-UserPath $MavenBin
 
-    $env:MAVEN_HOME = $MavenInstallDir
+$env:MAVEN_HOME = $MavenInstallDir
 
-    Say ""
-    Say "Apache Maven $MavenVersion installed."
-    Say "Maven home: $MavenInstallDir"
+Say ""
+Say "Apache Maven $MavenVersion installed."
+Say "Maven home: $MavenInstallDir"
 }
 
 function Install-Maven-Interactively {
-    $answer = Read-Host `
+$answer = Read-Host `
         "Missing dependency: Maven. Download Apache Maven $MavenVersion into the project? [Y/n]"
 
-    if ([string]::IsNullOrWhiteSpace($answer)) {
-        $answer = "Y"
-    }
+if ([string]::IsNullOrWhiteSpace($answer)) {
+$answer = "Y"
+}
 
-    if ($answer -notmatch '^[Yy]$') {
-        Fail "Setup cancelled."
-    }
+if ($answer -notmatch '^[Yy]$') {
+Fail "Setup cancelled."
+}
 
-    Install-Maven
+Install-Maven
 }
 
 # MSYS2 tool checks
+#
+# MSYS2 is a rolling-release environment. A newly installed or long-unused
+# installation can have package metadata referring to package revisions that
+# no longer exist on the mirrors. Always bootstrap/update MSYS2 before
+# installing project build dependencies.
 
 function Test-MsysTool([string]$RelativePath) {
-    return Test-Path (Join-Path $Msys2Home $RelativePath)
+return Test-Path (Join-Path $Msys2Home $RelativePath)
 }
 
 # MSYS2 programs are not necessarily Windows .exe files.
@@ -407,421 +412,481 @@ function Test-MsysTool([string]$RelativePath) {
 # Therefore, check them from inside the MSYS2 environment using
 # command -v instead of checking Windows file paths.
 function Test-MsysCommand([string]$Name) {
-    if (-not (Test-Path $Msys2Bash)) {
-        return $false
-    }
+if (-not (Test-Path $Msys2Bash)) {
+return $false
+}
 
-    $command = @"
+$command = @"
 export MSYSTEM=UCRT64
 export CHERE_INVOKING=1
 export PATH=/ucrt64/bin:/usr/bin:`$PATH
 command -v '$Name' >/dev/null 2>&1
 "@
 
-    & $Msys2Bash -lc $command
+& $Msys2Bash -lc $command
 
-    return $LASTEXITCODE -eq 0
+return $LASTEXITCODE -eq 0
 }
 
 function Test-MsysBuildTools {
-    return (
-    (Test-MsysCommand "g++") -and
-            (Test-MsysCommand "pkg-config") -and
-            (Test-MsysCommand "make") -and
-            (Test-MsysCommand "autoconf") -and
-            (Test-MsysCommand "automake") -and
-            (Test-MsysCommand "libtool") -and
-            (Test-MsysCommand "curl") -and
-            (Test-MsysCommand "tar")
-    )
+return (
+(Test-MsysCommand "g++") -and
+(Test-MsysCommand "pkg-config") -and
+(Test-MsysCommand "make") -and
+(Test-MsysCommand "autoconf") -and
+(Test-MsysCommand "automake") -and
+(Test-MsysCommand "libtool") -and
+(Test-MsysCommand "curl") -and
+(Test-MsysCommand "tar")
+)
+}
+
+# MSYS2 updates can replace pacman/core runtime files. Running each
+# update from a fresh bash process avoids continuing inside a process whose
+# MSYS2 runtime may have just been replaced.
+function Update-Msys2 {
+if (-not (Test-Path $Msys2Bash)) {
+Fail "MSYS2 bash was not found at $Msys2Bash"
+}
+
+Say ""
+Say "Updating MSYS2 system packages..."
+Say "This may run more than once because MSYS2 core updates can require"
+Say "a fresh MSYS2 process before the remaining updates are applied."
+
+for ($pass = 1; $pass -le 2; $pass++) {
+Say ""
+Say "MSYS2 system update pass $pass of 2..."
+
+$command = @"
+export MSYSTEM=UCRT64
+export CHERE_INVOKING=1
+export PATH=/ucrt64/bin:/usr/bin:`$PATH
+pacman -Syu --noconfirm
+"@
+
+& $Msys2Bash -lc $command
+
+if ($LASTEXITCODE -ne 0) {
+Fail "MSYS2 system update failed on pass $pass."
+}
+}
+
+Say ""
+Say "MSYS2 system update completed."
 }
 
 function Install-MsysPackage([string]$Package) {
-    $command = @"
+$command = @"
 export MSYSTEM=UCRT64
 export CHERE_INVOKING=1
 export PATH=/ucrt64/bin:/usr/bin:`$PATH
 pacman -S --needed --noconfirm $Package
 "@
 
-    & $Msys2Bash -lc $command
+& $Msys2Bash -lc $command
 
-    if ($LASTEXITCODE -ne 0) {
-        Fail "MSYS2 failed while installing package: $Package"
-    }
+if ($LASTEXITCODE -eq 0) {
+return
+}
+
+# A package can still fail if the local package database was stale when
+# installation was attempted. Refresh the MSYS2 system in fresh bash
+# processes and retry once instead of asking the user to run pacman
+# manually.
+Say ""
+Say "MSYS2 package installation failed for: $Package"
+Say "Refreshing the MSYS2 package database and retrying..."
+
+Update-Msys2
+
+& $Msys2Bash -lc $command
+
+if ($LASTEXITCODE -ne 0) {
+Fail "MSYS2 failed while installing package: $Package"
+}
 }
 
 function Install-MsysMissingPackages {
-    if (-not (Test-Path $Msys2Bash)) {
-        Fail "MSYS2 bash was not found at $Msys2Bash"
-    }
+if (-not (Test-Path $Msys2Bash)) {
+Fail "MSYS2 bash was not found at $Msys2Bash"
+}
 
-    Say ""
-    Say "Checking required MSYS2 packages..."
+Say ""
+Say "Checking required MSYS2 packages..."
 
-    # Install only the specific packages that are actually missing.
-    # Do not install the full UCRT64 toolchain group, because existing
-    # *-git packages can conflict with that meta-package.
+# Install only the specific packages that are actually missing.
+# Do not install the full UCRT64 toolchain group, because existing
+# *-git packages can conflict with that meta-package.
 
-    if (-not (Test-MsysCommand "g++")) {
-        Say "Missing: UCRT64 C++ compiler"
-        Install-MsysPackage "mingw-w64-ucrt-x86_64-gcc"
-    }
+if (-not (Test-MsysCommand "g++")) {
+Say "Missing: UCRT64 C++ compiler"
+Install-MsysPackage "mingw-w64-ucrt-x86_64-gcc"
+}
 
-    if (-not (Test-MsysCommand "pkg-config")) {
-        Say "Missing: UCRT64 pkg-config"
-        Install-MsysPackage "mingw-w64-ucrt-x86_64-pkgconf"
-    }
+if (-not (Test-MsysCommand "pkg-config")) {
+Say "Missing: UCRT64 pkg-config"
+Install-MsysPackage "mingw-w64-ucrt-x86_64-pkgconf"
+}
 
-    if (-not (Test-MsysCommand "make")) {
-        Say "Missing: MSYS make"
-        Install-MsysPackage "make"
-    }
+if (-not (Test-MsysCommand "make")) {
+Say "Missing: MSYS make"
+Install-MsysPackage "make"
+}
 
-    if (-not (Test-MsysCommand "autoconf")) {
-        Say "Missing: autoconf"
-        Install-MsysPackage "autoconf"
-    }
+if (-not (Test-MsysCommand "autoconf")) {
+Say "Missing: autoconf"
+Install-MsysPackage "autoconf"
+}
 
-    if (-not (Test-MsysCommand "automake")) {
-        Say "Missing: automake"
-        Install-MsysPackage "automake"
-    }
+if (-not (Test-MsysCommand "automake")) {
+Say "Missing: automake"
+Install-MsysPackage "automake"
+}
 
-    if (-not (Test-MsysCommand "libtool")) {
-        Say "Missing: libtool"
-        Install-MsysPackage "libtool"
-    }
+if (-not (Test-MsysCommand "libtool")) {
+Say "Missing: libtool"
+Install-MsysPackage "libtool"
+}
 
-    if (-not (Test-MsysCommand "curl")) {
-        Say "Missing: curl"
-        Install-MsysPackage "curl"
-    }
+if (-not (Test-MsysCommand "curl")) {
+Say "Missing: curl"
+Install-MsysPackage "curl"
+}
 
-    if (-not (Test-MsysCommand "tar")) {
-        Say "Missing: tar"
-        Install-MsysPackage "tar"
-    }
+if (-not (Test-MsysCommand "tar")) {
+Say "Missing: tar"
+Install-MsysPackage "tar"
+}
 
-    if (-not (Test-MsysBuildTools)) {
-        Fail "Required MSYS2 build tools are still missing."
-    }
+if (-not (Test-MsysBuildTools)) {
+Fail "Required MSYS2 build tools are still missing."
+}
 }
 
 # Graphviz checks
 
 function Get-GraphvizDot {
-    $command = Get-Command "dot.exe" -ErrorAction SilentlyContinue
-    if ($null -ne $command) {
-        return $command.Source
-    }
+$command = Get-Command "dot.exe" -ErrorAction SilentlyContinue
+if ($null -ne $command) {
+return $command.Source
+}
 
-    if (Test-Path $GraphvizDot) {
-        return $GraphvizDot
-    }
+if (Test-Path $GraphvizDot) {
+return $GraphvizDot
+}
 
-    return $null
+return $null
 }
 
 function Graphviz-LocalInstalled {
-    return Test-Path $GraphvizDot
+return Test-Path $GraphvizDot
 }
 
 function Graphviz-Installed {
-    return $null -ne (Get-GraphvizDot)
+return $null -ne (Get-GraphvizDot)
 }
 
 function Install-Graphviz {
-    New-Item -ItemType Directory -Force -Path $GraphvizDownloadDir, $GraphvizHome | Out-Null
+New-Item -ItemType Directory -Force -Path $GraphvizDownloadDir, $GraphvizHome | Out-Null
 
-    # Do not execute a downloaded Graphviz installer. Graphviz officially
-    # publishes a Windows ZIP containing dot.exe and all required libraries;
-    # extracting it also keeps the dependency local to this repository.
-    if (-not (Test-Path $GraphvizArchive)) {
-        Say ""
-        Say "Downloading Graphviz $GraphvizVersion (Windows ZIP)..."
-        Invoke-WebRequest -Uri $GraphvizUrl -OutFile $GraphvizArchive
-    }
-    else {
-        Say ""
-        Say "Graphviz archive already exists."
-        Say "Reusing: $GraphvizArchive"
-    }
+# Do not execute a downloaded Graphviz installer. Graphviz officially
+# publishes a Windows ZIP containing dot.exe and all required libraries;
+# extracting it also keeps the dependency local to this repository.
+if (-not (Test-Path $GraphvizArchive)) {
+Say ""
+Say "Downloading Graphviz $GraphvizVersion (Windows ZIP)..."
+Invoke-WebRequest -Uri $GraphvizUrl -OutFile $GraphvizArchive
+}
+else {
+Say ""
+Say "Graphviz archive already exists."
+Say "Reusing: $GraphvizArchive"
+}
 
-    Say ""
-    Say "Installing Graphviz $GraphvizVersion into the project..."
+Say ""
+Say "Installing Graphviz $GraphvizVersion into the project..."
 
-    if (Test-Path $GraphvizHome) {
-        Get-ChildItem -Force $GraphvizHome | Remove-Item -Recurse -Force
-    }
+if (Test-Path $GraphvizHome) {
+Get-ChildItem -Force $GraphvizHome | Remove-Item -Recurse -Force
+}
 
-    $extractDir = Join-Path $GraphvizDir "_extract"
-    if (Test-Path $extractDir) {
-        Remove-Item -Recurse -Force $extractDir
-    }
-    New-Item -ItemType Directory -Force -Path $extractDir | Out-Null
+$extractDir = Join-Path $GraphvizDir "_extract"
+if (Test-Path $extractDir) {
+Remove-Item -Recurse -Force $extractDir
+}
+New-Item -ItemType Directory -Force -Path $extractDir | Out-Null
 
-    try {
-        Expand-Archive -Path $GraphvizArchive -DestinationPath $extractDir -Force
+try {
+Expand-Archive -Path $GraphvizArchive -DestinationPath $extractDir -Force
 
-        $dotCandidates = @(Get-ChildItem -Path $extractDir -Filter "dot.exe" -File -Recurse)
-        if ($dotCandidates.Count -eq 0) {
-            Fail "Graphviz archive was extracted, but dot.exe was not found."
-        }
+$dotCandidates = @(Get-ChildItem -Path $extractDir -Filter "dot.exe" -File -Recurse)
+if ($dotCandidates.Count -eq 0) {
+Fail "Graphviz archive was extracted, but dot.exe was not found."
+}
 
-        $dotSource = $dotCandidates[0].Directory.Parent.FullName
-        Copy-Item -Path (Join-Path $dotSource "*") -Destination $GraphvizHome -Recurse -Force
-    }
-    finally {
-        if (Test-Path $extractDir) {
-            Remove-Item -Recurse -Force $extractDir
-        }
-    }
+$dotSource = $dotCandidates[0].Directory.Parent.FullName
+Copy-Item -Path (Join-Path $dotSource "*") -Destination $GraphvizHome -Recurse -Force
+}
+finally {
+if (Test-Path $extractDir) {
+Remove-Item -Recurse -Force $extractDir
+}
+}
 
-    if (-not (Test-Path $GraphvizDot)) {
-        # Some Graphviz archives have one extra top-level directory. Locate
-        # dot.exe and normalize that directory into tools\graphviz\install.
-        $dot = Get-ChildItem -Path $GraphvizHome -Filter "dot.exe" -File -Recurse | Select-Object -First 1
-        if ($dot) {
-            $sourceBin = $dot.Directory.FullName
-            $sourceRoot = Split-Path -Parent $sourceBin
-            $items = Get-ChildItem -Force $sourceRoot
-            foreach ($item in $items) {
-                Move-Item -Path $item.FullName -Destination $GraphvizHome -Force
-            }
-        }
-    }
+if (-not (Test-Path $GraphvizDot)) {
+# Some Graphviz archives have one extra top-level directory. Locate
+# dot.exe and normalize that directory into tools\graphviz\install.
+$dot = Get-ChildItem -Path $GraphvizHome -Filter "dot.exe" -File -Recurse | Select-Object -First 1
+if ($dot) {
+$sourceBin = $dot.Directory.FullName
+$sourceRoot = Split-Path -Parent $sourceBin
+$items = Get-ChildItem -Force $sourceRoot
+foreach ($item in $items) {
+Move-Item -Path $item.FullName -Destination $GraphvizHome -Force
+}
+}
+}
 
-    if (-not (Test-Path $GraphvizDot)) {
-        Fail "Graphviz installation completed, but dot.exe was not found at $GraphvizDot"
-    }
+if (-not (Test-Path $GraphvizDot)) {
+Fail "Graphviz installation completed, but dot.exe was not found at $GraphvizDot"
+}
 
-    Say "Graphviz $GraphvizVersion installed successfully."
-    Say "Graphviz home: $GraphvizHome"
+Say "Graphviz $GraphvizVersion installed successfully."
+Say "Graphviz home: $GraphvizHome"
 }
 
 # General dependency check
 
 function Check-Tools {
-    $missing = @()
+$missing = @()
 
-    if (-not (Test-Java21Plus)) {
-        $missing += "Java 21+ JDK"
-    }
+if (-not (Test-Java21Plus)) {
+$missing += "Java 21+ JDK"
+}
 
-    if (-not (Maven-Installed)) {
-        $missing += "Maven"
-    }
+if (-not (Maven-Installed)) {
+$missing += "Maven"
+}
 
-    if (-not (Graphviz-Installed)) {
-        $missing += "Graphviz"
-    }
+if (-not (Graphviz-Installed)) {
+$missing += "Graphviz"
+}
 
-    if (-not (Has-Command "cmake")) {
-        $missing += "CMake"
-    }
+if (-not (Has-Command "cmake")) {
+$missing += "CMake"
+}
 
-    if (-not (Has-Command "ninja")) {
-        $missing += "Ninja"
-    }
+if (-not (Has-Command "ninja")) {
+$missing += "Ninja"
+}
 
-    if (-not (Test-Path $Msys2Bash)) {
-        $missing += "MSYS2"
-    }
-    elseif (-not (Test-MsysBuildTools)) {
-        $missing += "MSYS2 build tools"
-    }
+if (-not (Test-Path $Msys2Bash)) {
+$missing += "MSYS2"
+}
+elseif (-not (Test-MsysBuildTools)) {
+$missing += "MSYS2 build tools"
+}
 
-    if ($missing.Count -eq 0) {
-        return $true
-    }
+if ($missing.Count -eq 0) {
+return $true
+}
 
-    Say ""
-    Say "Missing dependencies:"
+Say ""
+Say "Missing dependencies:"
 
-    foreach ($item in $missing) {
-        Say "  - $item"
-    }
+foreach ($item in $missing) {
+Say "  - $item"
+}
 
-    return $false
+return $false
 }
 
 # Install dependencies
 
 function Install-Tools {
-    if (-not (Has-Command "winget")) {
-        Fail "winget is required for automatic Windows dependency installation."
-    }
+if (-not (Has-Command "winget")) {
+Fail "winget is required for automatic Windows dependency installation."
+}
 
-    # Java
-    # Microsoft documents Microsoft.OpenJDK.21 as a Windows WinGet package.
-    # We only install it when no Java 21+ JDK is already available.
-    if (-not (Test-Java21Plus)) {
-        Ask-Install-Winget `
+# Java
+# Microsoft documents Microsoft.OpenJDK.21 as a Windows WinGet package.
+# We only install it when no Java 21+ JDK is already available.
+if (-not (Test-Java21Plus)) {
+Ask-Install-Winget `
             "Microsoft.OpenJDK.21" `
             "Java 21 JDK"
 
-        Refresh-Path
+Refresh-Path
 
-        if (-not (Test-Java21Plus)) {
-            Fail "Java 21+ is still not available after installation."
-        }
-    }
+if (-not (Test-Java21Plus)) {
+Fail "Java 21+ is still not available after installation."
+}
+}
 
-    # Maven
-    if (-not (Maven-Installed)) {
-        Install-Maven-Interactively
-    }
+# Maven
+if (-not (Maven-Installed)) {
+Install-Maven-Interactively
+}
 
-    # Graphviz
-    if (-not (Graphviz-Installed)) {
-        Install-Graphviz
-    }
+# Graphviz
+if (-not (Graphviz-Installed)) {
+Install-Graphviz
+}
 
-    # CMake
-    if (-not (Has-Command "cmake")) {
-        Ask-Install-Winget `
+# CMake
+if (-not (Has-Command "cmake")) {
+Ask-Install-Winget `
             "Kitware.CMake" `
             "CMake"
-    }
+}
 
-    # Ninja
-    if (-not (Has-Command "ninja")) {
-        Ask-Install-Winget `
+# Ninja
+if (-not (Has-Command "ninja")) {
+Ask-Install-Winget `
             "Ninja-build.Ninja" `
             "Ninja"
-    }
+}
 
-    # MSYS2
-    if (-not (Test-Path $Msys2Bash)) {
-        Ask-Install-Winget `
+# MSYS2
+if (-not (Test-Path $Msys2Bash)) {
+Ask-Install-Winget `
             "MSYS2.MSYS2" `
             "MSYS2"
-    }
+}
 
-    if (-not (Test-Path $Msys2Bash)) {
-        Fail "MSYS2 bash was not found at $Msys2Bash"
-    }
+if (-not (Test-Path $Msys2Bash)) {
+Fail "MSYS2 bash was not found at $Msys2Bash"
+}
 
-    Refresh-Path
+Refresh-Path
 
-    # Make MSYS2 tools available in this PowerShell process.
-    if (Test-Path $Msys2Ucrt) {
-        Add-UserPath $Msys2Ucrt
-    }
+# Make MSYS2 tools available in this PowerShell process.
+if (Test-Path $Msys2Ucrt) {
+Add-UserPath $Msys2Ucrt
+}
 
-    if (Test-Path $Msys2UsrBin) {
-        Add-UserPath $Msys2UsrBin
-    }
+if (Test-Path $Msys2UsrBin) {
+Add-UserPath $Msys2UsrBin
+}
 
-    $env:MSYS2_HOME = $Msys2Home
+$env:MSYS2_HOME = $Msys2Home
 
-    Install-MsysMissingPackages
+# A fresh MSYS2 installation may have package metadata that refers to
+# package revisions which have already moved off the mirrors. Perform
+# the standard MSYS2 full update before resolving build dependencies.
+#
+# The update is intentionally done twice in separate bash processes:
+# the first pass may update MSYS2's own runtime/pacman, after which a
+# fresh process is required for the remaining system update.
+Update-Msys2
+
+Install-MsysMissingPackages
 }
 
 # Spot checks
 
 function Spot-Installed {
-    $header = Join-Path $SpotHome "include\spot\tl\parse.hh"
-    $pcFile = Join-Path $SpotHome "lib\pkgconfig\libspot.pc"
+$header = Join-Path $SpotHome "include\spot\tl\parse.hh"
+$pcFile = Join-Path $SpotHome "lib\pkgconfig\libspot.pc"
 
-    return (
-    (Test-Path $header) -and
-            (Test-Path $pcFile)
-    )
+return (
+(Test-Path $header) -and
+(Test-Path $pcFile)
+)
 }
 
 # Build Spot
 
 function Build-Spot {
-    New-Item `
+New-Item `
         -ItemType Directory `
         -Force `
         -Path `
             (Join-Path $SpotDir "downloads"), `
             (Join-Path $SpotDir "src") |
-            Out-Null
+Out-Null
 
-    # Download
+# Download
 
-    if (-not (Test-Path $SpotArchive)) {
-        Say ""
-        Say "Downloading Spot $SpotVersion..."
+if (-not (Test-Path $SpotArchive)) {
+Say ""
+Say "Downloading Spot $SpotVersion..."
 
-        Invoke-WebRequest `
+Invoke-WebRequest `
             -Uri $SpotUrl `
             -OutFile $SpotArchive
-    }
-    else {
-        Say ""
-        Say "Spot archive already exists."
-        Say "Reusing: $SpotArchive"
-    }
+}
+else {
+Say ""
+Say "Spot archive already exists."
+Say "Reusing: $SpotArchive"
+}
 
-    # Extract
+# Extract
 
-    if (-not (Test-Path $SpotSource)) {
-        Say ""
-        Say "Extracting Spot $SpotVersion..."
+if (-not (Test-Path $SpotSource)) {
+Say ""
+Say "Extracting Spot $SpotVersion..."
 
-        tar -xzf `
+tar -xzf `
             $SpotArchive `
             -C (Join-Path $SpotDir "src")
 
-        if ($LASTEXITCODE -ne 0) {
-            Fail "Failed to extract Spot $SpotVersion."
-        }
-    }
-    else {
-        Say ""
-        Say "Spot source already exists."
-        Say "Reusing: $SpotSource"
-    }
+if ($LASTEXITCODE -ne 0) {
+Fail "Failed to extract Spot $SpotVersion."
+}
+}
+else {
+Say ""
+Say "Spot source already exists."
+Say "Reusing: $SpotSource"
+}
 
-    if (-not (Test-Path $SpotSource)) {
-        Fail "Spot source directory was not found after extraction: $SpotSource"
-    }
+if (-not (Test-Path $SpotSource)) {
+Fail "Spot source directory was not found after extraction: $SpotSource"
+}
 
-    # Remove incomplete installation
+# Remove incomplete installation
 
-    if (Test-Path $SpotHome) {
-        Say ""
-        Say "Removing previous incomplete Spot installation..."
+if (Test-Path $SpotHome) {
+Say ""
+Say "Removing previous incomplete Spot installation..."
 
-        Remove-Item -Recurse -Force $SpotHome
-    }
+Remove-Item -Recurse -Force $SpotHome
+}
 
-    New-Item `
+New-Item `
         -ItemType Directory `
         -Force `
         -Path $SpotHome |
-            Out-Null
+Out-Null
 
-    # Convert Windows paths to MSYS2 paths
+# Convert Windows paths to MSYS2 paths
 
-    $srcPosix = (
-    & $Msys2Bash -lc `
+$srcPosix = (
+& $Msys2Bash -lc `
             "cygpath -u '$($SpotSource -replace '\\','/')'"
-    ).Trim()
+).Trim()
 
-    $dstPosix = (
-    & $Msys2Bash -lc `
+$dstPosix = (
+& $Msys2Bash -lc `
             "cygpath -u '$($SpotHome -replace '\\','/')'"
-    ).Trim()
+).Trim()
 
-    if ([string]::IsNullOrWhiteSpace($srcPosix)) {
-        Fail "Could not convert Spot source path to an MSYS2 path."
-    }
+if ([string]::IsNullOrWhiteSpace($srcPosix)) {
+Fail "Could not convert Spot source path to an MSYS2 path."
+}
 
-    if ([string]::IsNullOrWhiteSpace($dstPosix)) {
-        Fail "Could not convert Spot install path to an MSYS2 path."
-    }
+if ([string]::IsNullOrWhiteSpace($dstPosix)) {
+Fail "Could not convert Spot install path to an MSYS2 path."
+}
 
-    Say ""
-    Say "Building Spot $SpotVersion using MSYS2 UCRT64..."
-    Say "Build parallelism: $MakeJobs"
+Say ""
+Say "Building Spot $SpotVersion using MSYS2 UCRT64..."
+Say "Build parallelism: $MakeJobs"
 
-    $buildCommand = @"
+$buildCommand = @"
 export MSYSTEM=UCRT64
 export CHERE_INVOKING=1
 export PATH=/ucrt64/bin:/usr/bin:`$PATH
@@ -836,217 +901,217 @@ make -j$MakeJobs
 make install
 "@
 
-    & $Msys2Bash -lc $buildCommand
+& $Msys2Bash -lc $buildCommand
 
-    if ($LASTEXITCODE -ne 0) {
-        Fail "Spot build failed."
-    }
+if ($LASTEXITCODE -ne 0) {
+Fail "Spot build failed."
+}
 
-    if (-not (Spot-Installed)) {
-        Fail `
+if (-not (Spot-Installed)) {
+Fail `
             "Spot build completed, but the expected installation files were not found under $SpotHome"
-    }
+}
 
-    Say ""
-    Say "Spot $SpotVersion installed successfully."
+Say ""
+Say "Spot $SpotVersion installed successfully."
 }
 
 # Persist environment
 
 function Persist-Environment {
-    $selectedJavaHome = Select-Java21Plus
+$selectedJavaHome = Select-Java21Plus
 
-    if ($null -eq $selectedJavaHome) {
-        Fail "Could not select a usable Java 21+ JDK."
-    }
+if ($null -eq $selectedJavaHome) {
+Fail "Could not select a usable Java 21+ JDK."
+}
 
-    [Environment]::SetEnvironmentVariable(
-            "JAVA_HOME",
-            $selectedJavaHome,
-            "User"
-    )
+[Environment]::SetEnvironmentVariable(
+"JAVA_HOME",
+$selectedJavaHome,
+"User"
+)
 
-    [Environment]::SetEnvironmentVariable(
-            "SPOT_HOME",
-            $SpotHome,
-            "User"
-    )
+[Environment]::SetEnvironmentVariable(
+"SPOT_HOME",
+$SpotHome,
+"User"
+)
 
-    [Environment]::SetEnvironmentVariable(
-            "MSYS2_HOME",
-            $Msys2Home,
-            "User"
-    )
+[Environment]::SetEnvironmentVariable(
+"MSYS2_HOME",
+$Msys2Home,
+"User"
+)
 
-    if (Test-Path $MavenInstallDir) {
-        [Environment]::SetEnvironmentVariable(
-                "MAVEN_HOME",
-                $MavenInstallDir,
-                "User"
-        )
-    }
+if (Test-Path $MavenInstallDir) {
+[Environment]::SetEnvironmentVariable(
+"MAVEN_HOME",
+$MavenInstallDir,
+"User"
+)
+}
 
-    Add-UserPath (Join-Path $selectedJavaHome "bin")
-    Add-UserPath (Join-Path $SpotHome "bin")
+Add-UserPath (Join-Path $selectedJavaHome "bin")
+Add-UserPath (Join-Path $SpotHome "bin")
 
-    if (Graphviz-LocalInstalled) {
-        Add-UserPath $GraphvizBin
-    }
-    Add-UserPath $Msys2Ucrt
+if (Graphviz-LocalInstalled) {
+Add-UserPath $GraphvizBin
+}
+Add-UserPath $Msys2Ucrt
 
-    if (Test-Path $Msys2UsrBin) {
-        Add-UserPath $Msys2UsrBin
-    }
+if (Test-Path $Msys2UsrBin) {
+Add-UserPath $Msys2UsrBin
+}
 
-    if (Test-Path $MavenBin) {
-        Add-UserPath $MavenBin
-    }
+if (Test-Path $MavenBin) {
+Add-UserPath $MavenBin
+}
 
-    $env:JAVA_HOME = $selectedJavaHome
-    $env:SPOT_HOME = $SpotHome
+$env:JAVA_HOME = $selectedJavaHome
+$env:SPOT_HOME = $SpotHome
 
-    if (Graphviz-LocalInstalled) {
-        $env:GRAPHVIZ_HOME = $GraphvizHome
-    }
-    $env:MSYS2_HOME = $Msys2Home
+if (Graphviz-LocalInstalled) {
+$env:GRAPHVIZ_HOME = $GraphvizHome
+}
+$env:MSYS2_HOME = $Msys2Home
 
-    if (Test-Path $MavenInstallDir) {
-        $env:MAVEN_HOME = $MavenInstallDir
-    }
+if (Test-Path $MavenInstallDir) {
+$env:MAVEN_HOME = $MavenInstallDir
+}
 }
 
 # Check-only mode
 
 if ($Check) {
-    Say "========================================"
-    Say "Machine Decomposition Environment Check"
-    Say "========================================"
-    Say ""
+Say "========================================"
+Say "Machine Decomposition Environment Check"
+Say "========================================"
+Say ""
 
-    Refresh-Path
+Refresh-Path
 
-    $javaHome = Get-UsableJavaHome
+$javaHome = Get-UsableJavaHome
 
-    if ($null -ne $javaHome) {
-        $javaMajor = Get-JavaMajorFromHome $javaHome
-        Say "Java 21+    : OK (Java $javaMajor)"
-        Say "JAVA_HOME  : $javaHome"
-    }
-    else {
-        Say "Java 21+    : MISSING"
-        Say "JAVA_HOME  : not detected"
-    }
+if ($null -ne $javaHome) {
+$javaMajor = Get-JavaMajorFromHome $javaHome
+Say "Java 21+    : OK (Java $javaMajor)"
+Say "JAVA_HOME  : $javaHome"
+}
+else {
+Say "Java 21+    : MISSING"
+Say "JAVA_HOME  : not detected"
+}
 
-    if (Maven-Installed) {
-        Say "Maven       : OK"
-    }
-    else {
-        Say "Maven       : MISSING"
-    }
+if (Maven-Installed) {
+Say "Maven       : OK"
+}
+else {
+Say "Maven       : MISSING"
+}
 
-    $graphvizDot = Get-GraphvizDot
-    if ($null -ne $graphvizDot) {
-        Say "Graphviz    : OK"
-        Say "Graphviz dot: $graphvizDot"
-    }
-    else {
-        Say "Graphviz    : MISSING"
-    }
+$graphvizDot = Get-GraphvizDot
+if ($null -ne $graphvizDot) {
+Say "Graphviz    : OK"
+Say "Graphviz dot: $graphvizDot"
+}
+else {
+Say "Graphviz    : MISSING"
+}
 
-    if (Has-Command "cmake") {
-        Say "CMake       : OK"
-    }
-    else {
-        Say "CMake       : MISSING"
-    }
+if (Has-Command "cmake") {
+Say "CMake       : OK"
+}
+else {
+Say "CMake       : MISSING"
+}
 
-    if (Has-Command "ninja") {
-        Say "Ninja       : OK"
-    }
-    else {
-        Say "Ninja       : MISSING"
-    }
+if (Has-Command "ninja") {
+Say "Ninja       : OK"
+}
+else {
+Say "Ninja       : MISSING"
+}
 
-    if (Test-Path $Msys2Bash) {
-        Say "MSYS2       : OK"
-    }
-    else {
-        Say "MSYS2       : MISSING"
-    }
+if (Test-Path $Msys2Bash) {
+Say "MSYS2       : OK"
+}
+else {
+Say "MSYS2       : MISSING"
+}
 
-    if (Test-MsysCommand "g++") {
-        Say "UCRT64 C++  : OK"
-    }
-    else {
-        Say "UCRT64 C++  : MISSING"
-    }
+if (Test-MsysCommand "g++") {
+Say "UCRT64 C++  : OK"
+}
+else {
+Say "UCRT64 C++  : MISSING"
+}
 
-    if (Test-MsysCommand "make") {
-        Say "MSYS make   : OK"
-    }
-    else {
-        Say "MSYS make   : MISSING"
-    }
+if (Test-MsysCommand "make") {
+Say "MSYS make   : OK"
+}
+else {
+Say "MSYS make   : MISSING"
+}
 
-    if (Test-MsysCommand "pkg-config") {
-        Say "pkg-config  : OK"
-    }
-    else {
-        Say "pkg-config  : MISSING"
-    }
+if (Test-MsysCommand "pkg-config") {
+Say "pkg-config  : OK"
+}
+else {
+Say "pkg-config  : MISSING"
+}
 
-    if (Test-MsysCommand "autoconf") {
-        Say "autoconf     : OK"
-    }
-    else {
-        Say "autoconf     : MISSING"
-    }
+if (Test-MsysCommand "autoconf") {
+Say "autoconf     : OK"
+}
+else {
+Say "autoconf     : MISSING"
+}
 
-    if (Test-MsysCommand "automake") {
-        Say "automake     : OK"
-    }
-    else {
-        Say "automake     : MISSING"
-    }
+if (Test-MsysCommand "automake") {
+Say "automake     : OK"
+}
+else {
+Say "automake     : MISSING"
+}
 
-    if (Test-MsysCommand "libtool") {
-        Say "libtool      : OK"
-    }
-    else {
-        Say "libtool      : MISSING"
-    }
+if (Test-MsysCommand "libtool") {
+Say "libtool      : OK"
+}
+else {
+Say "libtool      : MISSING"
+}
 
-    if (Test-MsysCommand "curl") {
-        Say "curl         : OK"
-    }
-    else {
-        Say "curl         : MISSING"
-    }
+if (Test-MsysCommand "curl") {
+Say "curl         : OK"
+}
+else {
+Say "curl         : MISSING"
+}
 
-    if (Test-MsysCommand "tar") {
-        Say "tar          : OK"
-    }
-    else {
-        Say "tar          : MISSING"
-    }
+if (Test-MsysCommand "tar") {
+Say "tar          : OK"
+}
+else {
+Say "tar          : MISSING"
+}
 
-    Say ""
+Say ""
 
-    if (Spot-Installed) {
-        Say "Spot $SpotVersion : OK"
-    }
-    else {
-        Say "Spot $SpotVersion : MISSING"
-    }
+if (Spot-Installed) {
+Say "Spot $SpotVersion : OK"
+}
+else {
+Say "Spot $SpotVersion : MISSING"
+}
 
-    Say ""
-    Say "Expected SPOT_HOME:"
-    Say "  $SpotHome"
+Say ""
+Say "Expected SPOT_HOME:"
+Say "  $SpotHome"
 
-    Say "Expected Maven (project-local):"
-    Say "  $MavenInstallDir"
+Say "Expected Maven (project-local):"
+Say "  $MavenInstallDir"
 
-    exit 0
+exit 0
 }
 
 # Normal setup
@@ -1054,33 +1119,33 @@ if ($Check) {
 Refresh-Path
 
 if (-not (Check-Tools)) {
-    Say ""
+Say ""
 
-    $answer = Read-Host `
+$answer = Read-Host `
         "Install missing dependencies using WinGet/MSYS2? [Y/n]"
 
-    if ([string]::IsNullOrWhiteSpace($answer)) {
-        $answer = "Y"
-    }
+if ([string]::IsNullOrWhiteSpace($answer)) {
+$answer = "Y"
+}
 
-    if ($answer -notmatch '^[Yy]$') {
-        Fail "Setup cancelled."
-    }
+if ($answer -notmatch '^[Yy]$') {
+Fail "Setup cancelled."
+}
 
-    Install-Tools
+Install-Tools
 }
 
 Refresh-Path
 
 if (-not (Check-Tools)) {
-    Fail "Required tools are still missing."
+Fail "Required tools are still missing."
 }
 
 # Select Java now so Maven/CMake invoked later use a JDK >= 21.
 $selectedJavaHome = Select-Java21Plus
 
 if ($null -eq $selectedJavaHome) {
-    Fail "Could not select a usable Java 21+ JDK."
+Fail "Could not select a usable Java 21+ JDK."
 }
 
 Say ""
@@ -1088,10 +1153,10 @@ Say "Using JDK: $selectedJavaHome"
 Say "Java major: $(Get-JavaMajorFromHome $selectedJavaHome)"
 
 if (-not (Spot-Installed)) {
-    Build-Spot
+Build-Spot
 }
 else {
-    Say "Spot $SpotVersion is already installed. Reusing it."
+Say "Spot $SpotVersion is already installed. Reusing it."
 }
 
 Persist-Environment
@@ -1104,10 +1169,10 @@ Say "JAVA_HOME : $env:JAVA_HOME"
 Say "SPOT_HOME : $env:SPOT_HOME"
 $graphvizDot = Get-GraphvizDot
 if ($graphvizDot) {
-    Say "Graphviz  : $graphvizDot"
+Say "Graphviz  : $graphvizDot"
 }
 if ($env:MAVEN_HOME) {
-    Say "MAVEN_HOME: $env:MAVEN_HOME"
+Say "MAVEN_HOME: $env:MAVEN_HOME"
 }
 Say ""
 Say "Open a new PowerShell session before building the project."
