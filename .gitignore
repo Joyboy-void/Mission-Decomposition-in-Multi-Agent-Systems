@@ -38,3 +38,8 @@ build/
 # Project-local native/tool downloads
 tools/spot
 tools/maven
+tools/graphviz
+
+# Generated Images
+
+output/automaton/*
