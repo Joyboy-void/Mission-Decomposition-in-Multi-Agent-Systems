@@ -22,6 +22,7 @@
         <module>ltlf2ra-spot</module>
         <module>ltlf2ra-app</module>
         <module>cli</module>
+        <module>ltlf2ra-graphviz</module>
     </modules>
 
 </project>
