@@ -4,6 +4,36 @@ $ErrorActionPreference = "Stop"
 # such as ∧, ∨, ⊤, and ⊥ are displayed correctly.
 chcp 65001 > $null
 
+
+# User-facing help
+
+if (
+$args.Count -eq 0 -or
+        $args[0] -eq "--help" -or
+        $args[0] -eq "-h"
+) {
+
+    Write-Host @"
+Usage:
+  .\scripts\run-cli.ps1 "<LTLf formula>"
+  .\scripts\run-cli.ps1 --dot "<LTLf formula>"
+  .\scripts\run-cli.ps1 --svg <path to output.svg> "<LTLf formula>"
+  .\scripts\run-cli.ps1 --png <path to output.png> "<LTLf formula>"
+
+Examples:
+  .\scripts\run-cli.ps1 "F(p)"
+  .\scripts\run-cli.ps1 "F G p"
+  .\scripts\run-cli.ps1 --dot "p | X(q & p)"
+  .\scripts\run-cli.ps1 --svg output/automaton/1.svg "p | X(q & p)"
+  .\scripts\run-cli.ps1 --png output/automaton/1.png "p | X(q & p)"
+"@
+
+    exit 0
+}
+
+
+# Paths
+
 $ProjectRoot = Split-Path -Parent $PSScriptRoot
 
 $Jar = Join-Path `
@@ -25,6 +55,10 @@ else {
 
 $SpotBin = Join-Path $SpotHome "bin"
 $UcrtBin = Join-Path $Msys2Home "ucrt64\bin"
+
+$GraphvizBin = Join-Path `
+    $ProjectRoot `
+    "tools\graphviz\install\bin"
 
 
 # Checks
@@ -86,7 +120,7 @@ if (-not (Test-Path $UcrtBin)) {
 # Temporary runtime environment
 
 $env:Path =
-"$Native;$SpotBin;$UcrtBin;$env:Path"
+"$Native;$SpotBin;$UcrtBin;$GraphvizBin;$env:Path"
 
 
 # Run CLI
