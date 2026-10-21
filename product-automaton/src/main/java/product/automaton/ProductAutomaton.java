@@ -1,6 +1,5 @@
 package product.automaton;
 
-import automata.Edge;
 import automata.WeightedAutomaton;
 import automata.WeightedTransition;
 import ltlf.alphabet.Valuation;

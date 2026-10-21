@@ -1,43 +1,9 @@
 # `ltlf2ra-app`
 
-The application module assembles the project into a usable LTLf-to-RA service.
+This module assembles the LTLf-to-RA workflow for use by the CLI and other callers.
 
-## `Ltlf2RaService`
+`Ltlf2RaService` parses the formula, collects propositions, creates the alphabet, configures residual semantics and normalization, and invokes the RA builder. `Ltlf2RaApplication` exposes operations to build the RA, format it for terminal output, export DOT, and render an output file.
 
-`build(String)`:
+The service also accepts additional atomic propositions. Product construction uses that overload to build the RA over the union of the formula's propositions and the agent model's propositions. Ordinary RA commands continue to use the formula's own proposition set.
 
-1. validates the input
-2. parses the formula
-3. collects atomic propositions
-4. constructs the alphabet
-5. creates the residual automaton builder
-6. builds the reachable Residual Automaton
-
-The default configuration uses:
-
-- `SpotFormulaParser`
-- `DefaultResidualSemantics`
-- `Simplifier`
-- `BooleanCanonicalizer`
-- `SpotEquivalenceChecker`
-
-Dependencies can also be supplied explicitly for tests or alternate implementations.
-
-## `Ltlf2RaApplication`
-
-The facade exposes four main operations:
-
-```java
-build(formula)
-execute(formula)
-exportDot(formula)
-render(formula, format, output)
-```
-
-`execute` produces terminal text.
-
-`exportDot` returns Graphviz DOT.
-
-`render` produces an image or other Graphviz-supported format.
-
-The application layer contains orchestration, not residual semantics.
+The module owns orchestration and RA presentation, not the residual semantics, agent-model parser, or product construction.
