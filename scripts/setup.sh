@@ -2701,6 +2701,10 @@ say "  mvn clean test"
 
 say ""
 
-say '  ./scripts/run-cli.sh "F G p"'
+say '  ./scripts/run-cli.sh --help '
+
+say ""
+
+say "for instructions on how to use the launcher script"
 
 say ""
