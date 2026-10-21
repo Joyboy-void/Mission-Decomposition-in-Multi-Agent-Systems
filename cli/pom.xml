@@ -22,33 +22,41 @@
     </properties>
 
     <dependencies>
-
         <dependency>
             <groupId>org.example</groupId>
             <artifactId>ltlf2ra-app</artifactId>
             <version>${project.version}</version>
         </dependency>
 
+        <dependency>
+            <groupId>org.example</groupId>
+            <artifactId>agent-model-app</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.example</groupId>
+            <artifactId>product-automaton-app</artifactId>
+            <version>${project.version}</version>
+        </dependency>
     </dependencies>
 
     <build>
-
         <finalName>cli</finalName>
 
         <plugins>
 
-            <!-- java compilation -->
+            <!-- Java compilation -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>3.16.0</version>
-
                 <configuration>
                     <release>21</release>
                 </configuration>
             </plugin>
 
-            <!-- create executable JAR -->
+            <!-- Create executable JAR -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-shade-plugin</artifactId>
@@ -57,13 +65,11 @@
                 <executions>
                     <execution>
                         <phase>package</phase>
-
                         <goals>
                             <goal>shade</goal>
                         </goals>
 
                         <configuration>
-
                             <createDependencyReducedPom>
                                 false
                             </createDependencyReducedPom>
@@ -73,18 +79,10 @@
                             </shadedArtifactAttached>
 
                             <transformers>
-
-                                <transformer implementation=
-                                                     "org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-
-                                    <mainClass>
-                                        ltlf.cli.Main
-                                    </mainClass>
-
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                                    <mainClass>machine.decomposition.cli.Main</mainClass>
                                 </transformer>
-
                             </transformers>
-
                         </configuration>
                     </execution>
                 </executions>

@@ -15,17 +15,26 @@ $args.Count -eq 0 -or
 
     Write-Host @"
 Usage:
-  .\scripts\run-cli.ps1 "<LTLf formula>"
-  .\scripts\run-cli.ps1 --dot "<LTLf formula>"
-  .\scripts\run-cli.ps1 --svg <path to output.svg> "<LTLf formula>"
-  .\scripts\run-cli.ps1 --png <path to output.png> "<LTLf formula>"
+  .\scripts\run-cli.ps1 --ra "<LTLf formula>"
+  .\scripts\run-cli.ps1 --ra-dot "<LTLf formula>"
+  .\scripts\run-cli.ps1 --ra-svg <output.svg> "<LTLf formula>"
+  .\scripts\run-cli.ps1 --ra-png <output.png> "<LTLf formula>"
+  .\scripts\run-cli.ps1 --agent-svg <output.svg> <agent-model-file>
+  .\scripts\run-cli.ps1 --agent-png <output.png> <agent-model-file>
+  .\scripts\run-cli.ps1 --product-svg <output.svg> <agent-model-file> "<LTLf formula>"
+  .\scripts\run-cli.ps1 --product-png <output.png> <agent-model-file> "<LTLf formula>"
 
 Examples:
-  .\scripts\run-cli.ps1 "F(p)"
-  .\scripts\run-cli.ps1 "F G p"
-  .\scripts\run-cli.ps1 --dot "p | X(q & p)"
-  .\scripts\run-cli.ps1 --svg output/automaton/1.svg "p | X(q & p)"
-  .\scripts\run-cli.ps1 --png output/automaton/1.png "p | X(q & p)"
+   .\scripts\run-cli.ps1 --ra "F(p)"
+   .\scripts\run-cli.ps1 --ra-dot "p | X(q & p)"
+   .\scripts\run-cli.ps1 --ra-svg output/automaton/1.svg "p | X(q & p)"
+   .\scripts\run-cli.ps1 --ra-png output/automaton/1.png "p | X(q & p)"
+  .\scripts\run-cli.ps1 --agent-svg output/agent.svg examples/agent-models/example.txt
+  .\scripts\run-cli.ps1 --agent-png output/agent.png examples/agent-models/example.txt
+  .\scripts\run-cli.ps1 --product-svg output/product.svg examples/agent-models/example.txt "F(p)"
+  .\scripts\run-cli.ps1 --product-png output/product.png examples/agent-models/example.txt "F(p)"
+
+Paths to input model files and output images may be relative or absolute. Quote paths that contain spaces.
 "@
 
     exit 0

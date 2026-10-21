@@ -7,17 +7,26 @@ set -eu
 if [ "$#" -eq 0 ] || [ "$1" = "--help" ] || [ "$1" = "-h" ]; then
     cat <<'EOF'
 Usage:
-  ./scripts/run-cli.sh "<LTLf formula>"
-  ./scripts/run-cli.sh --dot "<LTLf formula>"
-  ./scripts/run-cli.sh --svg <path to output.svg> "<LTLf formula>"
-  ./scripts/run-cli.sh --png <path to output.png> "<LTLf formula>"
+  ./scripts/run-cli.sh --ra "<LTLf formula>"
+  ./scripts/run-cli.sh --ra-dot "<LTLf formula>"
+  ./scripts/run-cli.sh --ra-svg <output.svg> "<LTLf formula>"
+  ./scripts/run-cli.sh --ra-png <output.png> "<LTLf formula>"
+  ./scripts/run-cli.sh --agent-svg <output.svg> <agent-model-file>
+  ./scripts/run-cli.sh --agent-png <output.png> <agent-model-file>
+  ./scripts/run-cli.sh --product-svg <output.svg> <agent-model-file> "<LTLf formula>"
+  ./scripts/run-cli.sh --product-png <output.png> <agent-model-file> "<LTLf formula>"
 
 Examples:
-  ./scripts/run-cli.sh "F(p)"
-  ./scripts/run-cli.sh "F G p"
-  ./scripts/run-cli.sh --dot "p | X(q & p)"
-  ./scripts/run-cli.sh --svg output/automaton/1.svg "p | X(q & p)"
-  ./scripts/run-cli.sh --png output/automaton/1.png "p | X(q & p)"
+  ./scripts/run-cli.sh --ra "F(p)"
+  ./scripts/run-cli.sh --ra-dot "p | X(q & p)"
+  ./scripts/run-cli.sh --ra-svg output/automaton/1.svg "p | X(q & p)"
+  ./scripts/run-cli.sh --ra-png output/automaton/1.png "p | X(q & p)"
+  ./scripts/run-cli.sh --agent-svg output/agent.svg examples/agent-models/example.txt
+  ./scripts/run-cli.sh --agent-png output/agent.png examples/agent-models/example.txt
+  ./scripts/run-cli.sh --product-svg output/product.svg examples/agent-models/example.txt "F(p)"
+  ./scripts/run-cli.sh --product-png output/product.png examples/agent-models/example.txt "F(p)"
+
+Paths to input model files and output images may be relative or absolute. Quote paths that contain spaces.
 EOF
 
     exit 0
