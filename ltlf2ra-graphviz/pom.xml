@@ -24,6 +24,12 @@
 
         <dependency>
             <groupId>org.example</groupId>
+            <artifactId>graphviz-core</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.example</groupId>
             <artifactId>ltlf2ra-core</artifactId>
             <version>${project.version}</version>
         </dependency>

@@ -17,12 +17,22 @@
     <packaging>pom</packaging>
 
     <modules>
-        <module>ltlf2ra-core</module>
         <module>automata-core</module>
+        <module>graphviz-core</module>
+
+        <module>ltlf2ra-core</module>
         <module>ltlf2ra-spot</module>
-        <module>ltlf2ra-app</module>
-        <module>cli</module>
         <module>ltlf2ra-graphviz</module>
+        <module>ltlf2ra-app</module>
+
+        <module>agent-model</module>
+        <module>agent-model-graphviz</module>
+        <module>agent-model-app</module>
+
+        <module>product-automaton</module>
+        <module>product-automaton-graphviz</module>
+        <module>product-automaton-app</module>
+        <module>cli</module>
     </modules>
 
 </project>

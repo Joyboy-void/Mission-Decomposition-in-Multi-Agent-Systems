@@ -15,8 +15,7 @@ import ltlf.semantics.ResidualSemantics;
 import ltlf.transform.*;
 
 
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 
 
 public final class Ltlf2RaService {
@@ -62,21 +61,38 @@ public final class Ltlf2RaService {
     }
 
     public ResidualAutomaton build(String formulaText){
+        return build(formulaText, List.of());
+    }
 
+    public ResidualAutomaton build(
+            String formulaText,
+            Collection<ltlf.ast.AtomicProposition> additionalPropositions
+    ){
         Objects.requireNonNull(formulaText, "Formula must not be null");
+        Objects.requireNonNull(additionalPropositions, "Additional propositions must not be null");
 
         String input = formulaText.trim();
 
         if(input.isEmpty()){
-            throw new IllegalArgumentException("The Formula must not be blank");
+            throw new IllegalArgumentException(
+                    "The Formula must not be blank"
+            );
         }
 
         Formula formula = parser.parse(input);
 
+        Set<ltlf.ast.AtomicProposition> allProposition =
+                new LinkedHashSet<>(propositionCollector.collect(formula));
+
+        for(ltlf.ast.AtomicProposition proposition : additionalPropositions){
+            allProposition.add(
+                    Objects.requireNonNull(proposition,
+                            "Additional proposition must not be null")
+            );
+        }
+
         AtomicPropositionSet propositionSet =
-                new AtomicPropositionSet(
-                    propositionCollector.collect(formula)
-                );
+                new AtomicPropositionSet(allProposition);
 
         Alphabet alphabet = new Alphabet(propositionSet);
 
@@ -90,5 +106,4 @@ public final class Ltlf2RaService {
 
         return builder.build(formula);
     }
-
 }

@@ -1,10 +1,12 @@
 package ltlf.application;
 
 import java.nio.file.Path;
+import java.util.Collection;
 import java.util.Objects;
 
+import graphviz.core.GraphvizRenderer;
+import ltlf.ast.AtomicProposition;
 import ltlf.automaton.ResidualAutomaton;
-import ltlf.graphviz.GraphvizRenderer;
 import ltlf.graphviz.ResidualAutomatonDotExporter;
 
 public class Ltlf2RaApplication {
@@ -51,6 +53,16 @@ public class Ltlf2RaApplication {
         return service.build(formulaText);
     }
 
+    /**
+     * Builds an RA using the formula's propositions plus additional propositions
+     * from a surrounding model.
+     */
+    public ResidualAutomaton build(
+            String formulaText,
+            Collection<AtomicProposition> additionalPropositions) {
+        return service.build(formulaText, additionalPropositions);
+    }
+
     public String execute(String formulaText){
         return formatter.format(build(formulaText));
     }
@@ -60,6 +72,11 @@ public class Ltlf2RaApplication {
     }
 
     public void render(String formulaText, String format, Path output){
-        graphvizRenderer.render(build(formulaText), format, output);
+        graphvizRenderer.render(
+                build(formulaText),
+                dotExporter,
+                format,
+                output
+        );
     }
 }

@@ -11,6 +11,8 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.StringJoiner;
 
+import graphviz.core.DotExporter;
+
 /**
  *  Converts a residual Automaton into Graphviz DOT source
  *
@@ -19,7 +21,8 @@ import java.util.StringJoiner;
  *  local graphviz installation </p>
  */
 
-public final class ResidualAutomatonDotExporter {
+public final class ResidualAutomatonDotExporter
+    implements DotExporter<ResidualAutomaton> {
 
     public String export(ResidualAutomaton automaton){
 

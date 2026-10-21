@@ -42,6 +42,12 @@
         </dependency>
 
         <dependency>
+            <groupId>org.example</groupId>
+            <artifactId>graphviz-core</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter</artifactId>
             <version>5.14.4</version>
