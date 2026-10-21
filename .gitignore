@@ -43,3 +43,7 @@ tools/graphviz
 # Generated Images
 
 output/automaton/*
+
+#input files
+
+input/AgentModel/*
