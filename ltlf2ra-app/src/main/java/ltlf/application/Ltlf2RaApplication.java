@@ -5,6 +5,8 @@ import java.util.Collection;
 import java.util.Objects;
 
 import graphviz.core.GraphvizRenderer;
+import ltlf.analysis.dres.DResFinder;
+import ltlf.analysis.dres.DResResult;
 import ltlf.ast.AtomicProposition;
 import ltlf.automaton.ResidualAutomaton;
 import ltlf.graphviz.ResidualAutomatonDotExporter;
@@ -16,6 +18,8 @@ public class Ltlf2RaApplication {
     private final ResidualAutomatonFormatter formatter;
     private final ResidualAutomatonDotExporter dotExporter;
     private final GraphvizRenderer graphvizRenderer;
+    private final DResFinder dResFinder;
+    private final DResFormatter dResFormatter;
 
 
     public Ltlf2RaApplication(){
@@ -23,7 +27,9 @@ public class Ltlf2RaApplication {
                 new Ltlf2RaService(),
                 new ResidualAutomatonFormatter(),
                 new ResidualAutomatonDotExporter(),
-                new GraphvizRenderer()
+                new GraphvizRenderer(),
+                new DResFinder(),
+                new DResFormatter()
         );
     }
 
@@ -34,7 +40,9 @@ public class Ltlf2RaApplication {
                 service,
                 formatter,
                 new ResidualAutomatonDotExporter(),
-                new GraphvizRenderer()
+                new GraphvizRenderer(),
+                new DResFinder(),
+                new DResFormatter()
         );
     }
 
@@ -42,11 +50,32 @@ public class Ltlf2RaApplication {
             Ltlf2RaService service,
             ResidualAutomatonFormatter formatter,
             ResidualAutomatonDotExporter dotExporter,
-            GraphvizRenderer graphvizRenderer ){
+            GraphvizRenderer graphvizRenderer) {
+
+        this(
+                service,
+                formatter,
+                dotExporter,
+                graphvizRenderer,
+                new DResFinder(),
+                new DResFormatter()
+        );
+    }
+
+    public Ltlf2RaApplication(
+            Ltlf2RaService service,
+            ResidualAutomatonFormatter formatter,
+            ResidualAutomatonDotExporter dotExporter,
+            GraphvizRenderer graphvizRenderer,
+            DResFinder dResFinder,
+            DResFormatter dResFormatter) {
+
         this.service = Objects.requireNonNull(service);
         this.formatter = Objects.requireNonNull(formatter);
         this.dotExporter = Objects.requireNonNull(dotExporter);
         this.graphvizRenderer = Objects.requireNonNull(graphvizRenderer);
+        this.dResFinder = Objects.requireNonNull(dResFinder);
+        this.dResFormatter = Objects.requireNonNull(dResFormatter);
     }
 
     public ResidualAutomaton build(String formulaText){
@@ -78,5 +107,27 @@ public class Ltlf2RaApplication {
                 format,
                 output
         );
+    }
+
+    /**
+     * builds the RA and discovers its DRes states.
+     */
+    public DResResult findDRes(String formulaText){
+
+        ResidualAutomaton automaton =
+                build(formulaText);
+
+        return dResFinder.find(automaton);
+    }
+
+    /**
+     * builds the RA, discovers DRes, and formats the result.
+     */
+    public String executeDRes(String formulaText){
+
+        DResResult result =
+                findDRes(formulaText);
+
+        return dResFormatter.format(result);
     }
 }

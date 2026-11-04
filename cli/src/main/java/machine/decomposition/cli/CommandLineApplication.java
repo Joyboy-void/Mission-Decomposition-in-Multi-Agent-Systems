@@ -13,7 +13,14 @@ import java.util.Objects;
 /** Parses command-line arguments and delegates to the appropriate application. */
 public final class CommandLineApplication {
 
-    private enum Mode {TEXT, DOT, RA_RENDER, AGENT_RENDER, PRODUCT_RENDER }
+    private enum Mode {
+        TEXT,
+        DOT,
+        DRES,
+        RA_RENDER,
+        AGENT_RENDER,
+        PRODUCT_RENDER
+    }
 
     private record ParsedCommand(
             Mode mode,
@@ -59,6 +66,8 @@ public final class CommandLineApplication {
 
                 case DOT -> out.println(raApplication.exportDot(command.formula()));
 
+                case DRES -> out.println(raApplication.executeDRes(command.formula()));
+
                 case RA_RENDER -> {
                     Path output = Path.of(command.output());
                     raApplication.render(command.formula(), command.format(), output);
@@ -101,6 +110,15 @@ public final class CommandLineApplication {
             case "--ra-dot" ->
                     new ParsedCommand(
                             Mode.DOT, joinFormula(args, 1), null, null, null);
+
+            case "--dres" ->
+                    new ParsedCommand(
+                            Mode.DRES,
+                            joinFormula(args, 1),
+                            null,
+                            null,
+                            null
+                    );
 
             case "--ra-svg" ->
                     parseRaRender(args, "svg");
@@ -192,6 +210,8 @@ public final class CommandLineApplication {
         out.println("  run-cli --ra-dot \"<LTLf formula>\"");
         out.println("  run-cli --ra-svg <output.svg> \"<LTLf formula>\"");
         out.println("  run-cli --ra-png <output.png> \"<LTLf formula>\"");
+
+        out.println("  run-cli --dres \"<LTLf formula>\"");
 
         out.println("  run-cli --agent-svg <output.svg> <agent-model-file>");
         out.println("  run-cli --agent-png <output.png> <agent-model-file>");

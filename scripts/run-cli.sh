@@ -11,6 +11,7 @@ Usage:
   ./scripts/run-cli.sh --ra-dot "<LTLf formula>"
   ./scripts/run-cli.sh --ra-svg <output.svg> "<LTLf formula>"
   ./scripts/run-cli.sh --ra-png <output.png> "<LTLf formula>"
+  ./scripts/run-cli.sh --dres "<LTLf formula>"
   ./scripts/run-cli.sh --agent-svg <output.svg> <agent-model-file>
   ./scripts/run-cli.sh --agent-png <output.png> <agent-model-file>
   ./scripts/run-cli.sh --product-svg <output.svg> <agent-model-file> "<LTLf formula>"
@@ -21,6 +22,7 @@ Examples:
   ./scripts/run-cli.sh --ra-dot "p | X(q & p)"
   ./scripts/run-cli.sh --ra-svg output/automaton/1.svg "p | X(q & p)"
   ./scripts/run-cli.sh --ra-png output/automaton/1.png "p | X(q & p)"
+  ./scripts/run-cli.sh --dres "F p"
   ./scripts/run-cli.sh --agent-svg output/agent.svg examples/agent-models/example.txt
   ./scripts/run-cli.sh --agent-png output/agent.png examples/agent-models/example.txt
   ./scripts/run-cli.sh --product-svg output/product.svg examples/agent-models/example.txt "F(p)"

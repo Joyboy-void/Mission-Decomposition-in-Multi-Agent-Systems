@@ -19,6 +19,7 @@ Usage:
   .\scripts\run-cli.ps1 --ra-dot "<LTLf formula>"
   .\scripts\run-cli.ps1 --ra-svg <output.svg> "<LTLf formula>"
   .\scripts\run-cli.ps1 --ra-png <output.png> "<LTLf formula>"
+   .\scripts\run-cli.ps1 --dres "<LTLf formula>"
   .\scripts\run-cli.ps1 --agent-svg <output.svg> <agent-model-file>
   .\scripts\run-cli.ps1 --agent-png <output.png> <agent-model-file>
   .\scripts\run-cli.ps1 --product-svg <output.svg> <agent-model-file> "<LTLf formula>"
@@ -29,6 +30,7 @@ Examples:
    .\scripts\run-cli.ps1 --ra-dot "p | X(q & p)"
    .\scripts\run-cli.ps1 --ra-svg output/automaton/1.svg "p | X(q & p)"
    .\scripts\run-cli.ps1 --ra-png output/automaton/1.png "p | X(q & p)"
+   .\scripts\run-cli.sh --dres "F p"
   .\scripts\run-cli.ps1 --agent-svg output/agent.svg examples/agent-models/example.txt
   .\scripts\run-cli.ps1 --agent-png output/agent.png examples/agent-models/example.txt
   .\scripts\run-cli.ps1 --product-svg output/product.svg examples/agent-models/example.txt "F(p)"
