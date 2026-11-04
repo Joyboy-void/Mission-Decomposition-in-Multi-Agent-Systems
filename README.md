@@ -12,7 +12,13 @@ The project is split into Maven modules so that formula semantics, agent-model d
 - Construct product automata over the combined atomic-proposition universe of the formula and agent model.
 - Export RA, agent-model, and product-automaton graphs.
 - Build and run the project on Windows and Linux/WSL using the supplied scripts.
+- DRes Analysis: Identifies pairs of residual automaton states that represent interchangeable task sequences.
 
+### DRes Analysis
+
+DRes identifies pairs of non-initial, non-final residual states that satisfy the two sequence-interchangeability conditions. It uses synchronized product-state exploration to determine whether the required paths exist.
+
+See [dres-analysis](docs/dres-analysis.md) for the intuition, pseudocode, and correctness argument.
 ## Setup and build
 
 The project targets Java 21. The RA parser/equivalence integration uses Spot through JNI, and image output requires Graphviz.
