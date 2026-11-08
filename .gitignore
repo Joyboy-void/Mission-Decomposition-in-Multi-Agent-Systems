@@ -43,10 +43,12 @@ tools/graphviz
 # generated automata and intermediate images
 /output/automaton/*
 /output/intermediate/*
+!/output/dres-certificate/*
 
 # preserve output directory structure
 !/output/automaton/.gitkeep
 !/output/intermediate/.gitkeep
+!/output/dres-certificate/.gitkeep
 
 # preserve input directory structure
 !/input/agent-model/.gitkeep
