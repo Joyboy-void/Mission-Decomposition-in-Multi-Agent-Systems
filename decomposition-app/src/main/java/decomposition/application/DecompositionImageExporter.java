@@ -1,12 +1,18 @@
 package decomposition.application;
 
+import automata.WeightedTransition;
+import decomposition.DecompositionResult;
 import graphviz.core.GraphvizRenderer;
 import ltlf.graphviz.ResidualAutomatonDotExporter;
 import product.automaton.graphviz.ProductAutomatonDotExporter;
+import team.automaton.TeamAction;
+import team.automaton.TeamState;
 import team.automaton.graphviz.TeamAutomatonDotExporter;
 
 import java.nio.file.Path;
+import java.util.LinkedHashSet;
 import java.util.Objects;
+import java.util.Set;
 
 public final class DecompositionImageExporter {
 
@@ -19,7 +25,8 @@ public final class DecompositionImageExporter {
             GraphvizRenderer renderer,
             ResidualAutomatonDotExporter raExporter,
             ProductAutomatonDotExporter productExporter,
-            TeamAutomatonDotExporter teamExporter) {
+            TeamAutomatonDotExporter teamExporter
+    ) {
 
         this.renderer = Objects.requireNonNull(renderer);
         this.raExporter = Objects.requireNonNull(raExporter);
@@ -33,7 +40,8 @@ public final class DecompositionImageExporter {
      */
     public void exportAll(
             DecompositionPipelineResult result,
-            Path outputDirectory) {
+            Path outputDirectory
+    ){
 
         exportAll(result, outputDirectory, "");
     }
@@ -45,13 +53,16 @@ public final class DecompositionImageExporter {
     public void exportAll(
             DecompositionPipelineResult result,
             Path outputDirectory,
-            String suffix) {
+            String suffix
+    ) {
 
         Objects.requireNonNull(result);
         Objects.requireNonNull(outputDirectory);
         Objects.requireNonNull(suffix);
 
-        if (!suffix.isEmpty() && !suffix.matches("-[a-fA-F0-9]+")) {
+        if (!suffix.isEmpty()
+                && !suffix.matches("-[a-fA-F0-9]+")) {
+
             throw new IllegalArgumentException(
                     "Suffix must be empty or a hyphen followed by hexadecimal characters."
             );
@@ -62,12 +73,71 @@ public final class DecompositionImageExporter {
         exportTeamAutomaton(result, outputDirectory, suffix);
     }
 
+    /**
+     * exports the Team Automaton with the exact minimum-cost
+     * decomposition transitions highlighted.
+     *
+     * The existing unhighlighted exports are unaffected.
+     */
+    public void exportHighlightedDecomposition(
+            DecompositionPipelineResult result,
+            Path outputDirectory,
+            String suffix
+    ){
+
+        Objects.requireNonNull(result, "result");
+        Objects.requireNonNull(outputDirectory, "outputDirectory");
+        Objects.requireNonNull(suffix, "suffix");
+
+        if(!suffix.isEmpty()
+                && !suffix.matches("-[a-fA-F0-9]+")){
+
+            throw new IllegalArgumentException(
+                    "Suffix must be empty or a hyphen followed by hexadecimal characters."
+            );
+        }
+
+        DecompositionResult decomposition =
+                result.decompositionResult();
+
+        if(!decomposition.isDecomposable()){
+            throw new IllegalStateException(
+                    "Cannot export a highlighted decomposition: "
+                            + "no decomposition exists."
+            );
+        }
+
+        Set<WeightedTransition<
+                TeamState,
+                TeamAction,
+                Integer>> selectedTransitions =
+                new LinkedHashSet<>(
+                        decomposition.getTransitions()
+                );
+
+        String dot = teamExporter.export(
+                result.teamAutomaton(),
+                selectedTransitions
+        );
+
+        renderBothFormats(
+                dot,
+                "neato",
+                outputDirectory.resolve(
+                        "team-automaton-decomposition-highlighted"
+                                + suffix
+                )
+        );
+    }
+
     private void exportResidualAutomaton(
             DecompositionPipelineResult result,
             Path directory,
-            String suffix){
+            String suffix
+    ){
 
-        String dot = raExporter.export(result.residualAutomaton());
+        String dot =
+                raExporter.export(result.residualAutomaton());
 
         renderBothFormats(
                 dot,
@@ -79,9 +149,11 @@ public final class DecompositionImageExporter {
     private void exportProductAutomaton(
             DecompositionPipelineResult result,
             Path directory,
-            String suffix){
+            String suffix
+    ){
 
-        String dot = productExporter.export(result.productAutomaton());
+        String dot =
+                productExporter.export(result.productAutomaton());
 
         // The existing Product Automaton exporter uses fixed positions.
         renderBothFormats(
@@ -94,9 +166,11 @@ public final class DecompositionImageExporter {
     private void exportTeamAutomaton(
             DecompositionPipelineResult result,
             Path directory,
-            String suffix) {
+            String suffix
+    ){
 
-        String dot = teamExporter.export(result.teamAutomaton());
+        String dot =
+                teamExporter.export(result.teamAutomaton());
 
         renderBothFormats(
                 dot,
@@ -108,7 +182,8 @@ public final class DecompositionImageExporter {
     private void renderBothFormats(
             String dot,
             String engine,
-            Path outputBase) {
+            Path outputBase
+    ){
 
         renderer.renderDotWithEngine(
                 engine,

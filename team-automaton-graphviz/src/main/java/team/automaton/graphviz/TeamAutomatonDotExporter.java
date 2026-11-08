@@ -14,6 +14,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
 
@@ -24,54 +25,60 @@ import java.util.stream.Collectors;
  * of the underlying Product Automaton grid.
  *
  * Layout:
- *
  * - Rows represent Residual Automaton states.
  * - Columns represent Agent Model states.
  * - Each Team Automaton copy occupies its own grid.
  * - Copies are arranged horizontally.
  *
- * rendering must use Graphviz neato with -n2.
+ * Rendering must use Graphviz neato with -n2.
  */
 public final class TeamAutomatonDotExporter
         implements DotExporter<TeamAutomaton> {
 
-    // spacing between Product Automaton states.
-
     private static final double COLUMN_SPACING = 150.0;
     private static final double ROW_SPACING = 150.0;
-
-    // additional horizontal space between consecutive Team Automaton copies.
-
     private static final double COPY_GAP = 180.0;
-
-    // initial marker placement.
-
     private static final double INITIAL_OFFSET = 150.0;
-
-    // Node dimensions.
-
     private static final double NODE_SIZE = 1.05;
 
     @Override
     public String export(TeamAutomaton automaton) {
+        return export(automaton, Set.of());
+    }
+
+    /**
+     * exports the Team Automaton while highlighting exactly the supplied
+     * transitions.
+     *
+     * highlighted transitions are red and have increased pen width.
+     * Selected epsilon transitions retain their dashed style.
+     */
+    public String export(
+            TeamAutomaton automaton,
+            Set<WeightedTransition<
+                    TeamState,
+                    TeamAction,
+                    Integer>> highlightedTransitions
+    ) {
 
         Objects.requireNonNull(automaton, "automaton");
+
+        Objects.requireNonNull(
+                highlightedTransitions,
+                "highlightedTransitions"
+        );
 
         ProductAutomaton product =
                 automaton.getProductAutomaton();
 
         /*
          * get the underlying Product Automaton states.
-         *
-         * Every Team Automaton copy contains exactly one logical copy of these states.
          */
         List<ProductState> productStates =
                 new ArrayList<>(product.getStates());
 
         /*
          * preserve first-seen Agent Model state order.
-         *
-         * this is the same column-ordering strategy used by ProductAutomatonDotExporter.
          */
         Map<String, Integer> agentColumns =
                 new LinkedHashMap<>();
@@ -140,7 +147,7 @@ public final class TeamAutomatonDotExporter
                 .append("fontsize=9")
                 .append("];\n\n");
 
-        // Position the initial marker to the left of the first Product Automaton grid.
+        // position the initial marker to the left of the first product Automaton grid.
 
         dot.append("  __initial [")
                 .append("shape=point, ")
@@ -157,7 +164,6 @@ public final class TeamAutomatonDotExporter
          *
          * x = copyOffset + agentColumn * COLUMN_SPACING
          * y = -residualRow * ROW_SPACING
-         *
          */
         for(int copyId = 1;
              copyId <= automaton.getNumberOfAgents();
@@ -232,7 +238,6 @@ public final class TeamAutomatonDotExporter
         }
 
         // initial states belong exclusively to copy 1.
-
         for(TeamState initial : automaton.getInitialStates()){
             dot.append("  __initial -> ")
                     .append(id(initial))
@@ -271,17 +276,19 @@ public final class TeamAutomatonDotExporter
                     String style = "solid";
                     String color = "black";
 
+                    boolean highlighted =
+                            highlightedTransitions.contains(edge);
+
                     if (edge.label()
                             instanceof TeamAction.ValuationAction action){
 
                         label = action.valuation()
-                                        + " / " + edge.weight();
+                                + " / " + edge.weight();
 
                     }else if (edge.label()
                             == TeamAction.SwitchAction.EPSILON){
 
-                        label =
-                                "ε / " + edge.weight();
+                        label = "ε / " + edge.weight();
 
                         style = "dashed";
                         color = "gray45";
@@ -290,6 +297,14 @@ public final class TeamAutomatonDotExporter
 
                         label =
                                 edge.label() + " / " + edge.weight();
+                    }
+
+                    /*
+                     * highlighting changes colour and width only.
+                     * selected epsilon edges remain dashed.
+                     */
+                    if (highlighted) {
+                        color = "#E53935";
                     }
 
                     dot.append("  ")
@@ -305,8 +320,15 @@ public final class TeamAutomatonDotExporter
                             .append(", ")
                             .append("color=\"")
                             .append(color)
-                            .append("\"")
-                            .append("];\n");
+                            .append("\"");
+
+                    if (highlighted) {
+
+                        dot.append(", fontcolor=\"#E53935\"")
+                                .append(", penwidth=3.5");
+                    }
+
+                    dot.append("];\n");
                 }
             }
         }
@@ -316,9 +338,8 @@ public final class TeamAutomatonDotExporter
         return dot.toString();
     }
 
-    /**
-     * generates a unique DOT identifier for a Team Automaton state.
-     */
+    // Generates a unique DOT identifier for a Team Automaton state.
+
     private String id(TeamState state) {
 
         ProductState productState =
@@ -329,9 +350,8 @@ public final class TeamAutomatonDotExporter
                 + "_s" + sanitize(productState.agentState().id());
     }
 
-    /**
-     * makes Agent Model state IDs safe for DOT identifiers.
-     */
+    // makes Agent Model state IDs safe for DOT identifiers.
+
     private String sanitize(String value) {
 
         return value.replaceAll(
@@ -340,9 +360,7 @@ public final class TeamAutomatonDotExporter
         );
     }
 
-    /**
-     * escapes special characters in Graphviz labels.
-     */
+    // escapes special characters in Graphviz labels.
     private String escape(String value) {
 
         return value
