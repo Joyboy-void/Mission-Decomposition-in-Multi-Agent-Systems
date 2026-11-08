@@ -1,0 +1,11 @@
+# agent model1
+initial: S0
+
+states:
+  S0: a
+  S1: b
+  S2: -
+
+edges:
+  S0 S1 5
+  S1 S2 2
