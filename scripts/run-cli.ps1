@@ -24,17 +24,27 @@ Usage:
   .\scripts\run-cli.ps1 --agent-png <output.png> <agent-model-file>
   .\scripts\run-cli.ps1 --product-svg <output.svg> <agent-model-file> "<LTLf formula>"
   .\scripts\run-cli.ps1 --product-png <output.png> <agent-model-file> "<LTLf formula>"
+  .\scripts\run-cli.ps1 --team-svg <output.png> <agent-model-file> "<LTLf formula>"
+  .\scripts\run-cli.ps1 --team-png <output.png> <agent-model-file> "<LTLf formula>"
+  .\scripts\run-cli.ps1 --decom <agent-model-file> "<LTLf formula>" <number-of-agents>
+  .\scripts\run-cli.ps1 --decom-img <agent-model-file> "<LTLf formula>" <number-of-agents>
+
 
 Examples:
    .\scripts\run-cli.ps1 --ra "F(p)"
    .\scripts\run-cli.ps1 --ra-dot "p | X(q & p)"
-   .\scripts\run-cli.ps1 --ra-svg output/automaton/1.svg "p | X(q & p)"
-   .\scripts\run-cli.ps1 --ra-png output/automaton/1.png "p | X(q & p)"
+   .\scripts\run-cli.ps1 --ra-svg output\automaton\1.svg "p | X(q & p)"
+   .\scripts\run-cli.ps1 --ra-png output\automaton\1.png "p | X(q & p)"
    .\scripts\run-cli.sh --dres "F p"
-  .\scripts\run-cli.ps1 --agent-svg output/agent.svg examples/agent-models/example.txt
-  .\scripts\run-cli.ps1 --agent-png output/agent.png examples/agent-models/example.txt
-  .\scripts\run-cli.ps1 --product-svg output/product.svg examples/agent-models/example.txt "F(p)"
-  .\scripts\run-cli.ps1 --product-png output/product.png examples/agent-models/example.txt "F(p)"
+   .\scripts\run-cli.ps1 --agent-svg output\automaton\agent.svg input\agent-model\agent1.txt
+   .\scripts\run-cli.ps1 --agent-png output\automaton\agent.png input\agent-model\agent1.txt
+   .\scripts\run-cli.ps1 --product-svg output\automaton\product.svg input\agent-model\agent1.txt "F(p)"
+   .\scripts\run-cli.ps1 --product-png output\automaton\product.png input\agent-model\agent1.txt "F(p)"
+   .\scripts\run-cli.ps1 --team-svg output\automaton\team.svg input\agent-model\agent1.txt "F a & F b" 3
+   .\scripts\run-cli.ps1 --team-png output\automaton\team.png input\agent-model\agent1.txt "F a & F b" 3
+   .\scripts\run-cli.ps1 --decom input\agent-model\agent1.txt "F p" 2
+   .\scripts\run-cli.ps1 --decom-img input\agent-model\agent1.txt "F p" 2
+
 
 Paths to input model files and output images may be relative or absolute. Quote paths that contain spaces.
 "@

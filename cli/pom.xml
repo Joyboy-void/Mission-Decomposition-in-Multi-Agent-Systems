@@ -39,6 +39,40 @@
             <artifactId>product-automaton-app</artifactId>
             <version>${project.version}</version>
         </dependency>
+
+        <dependency>
+            <groupId>org.example</groupId>
+            <artifactId>decomposition-app</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.example</groupId>
+            <artifactId>graphviz-core</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.example</groupId>
+            <artifactId>team-automaton-graphviz</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+
+        <!-- Residual Automaton Graphviz exporter -->
+        <dependency>
+            <groupId>org.example</groupId>
+            <artifactId>ltlf2ra-graphviz</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <!-- Product Automaton Graphviz exporter -->
+        <dependency>
+            <groupId>org.example</groupId>
+            <artifactId>product-automaton-graphviz</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
     </dependencies>
 
     <build>
