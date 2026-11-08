@@ -40,10 +40,13 @@ tools/spot
 tools/maven
 tools/graphviz
 
-# Generated Images
+# generated automata and intermediate images
+/output/automaton/*
+/output/intermediate/*
 
-output/automaton/*
+# preserve output directory structure
+!/output/automaton/.gitkeep
+!/output/intermediate/.gitkeep
 
-#input files
-
-input/AgentModel/*
+# preserve input directory structure
+!/input/agent-model/.gitkeep

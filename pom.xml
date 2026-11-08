@@ -32,6 +32,13 @@
         <module>product-automaton</module>
         <module>product-automaton-graphviz</module>
         <module>product-automaton-app</module>
+
+        <module>team-automaton</module>
+        <module>team-automaton-graphviz</module>
+
+        <module>decomposition</module>
+        <module>decomposition-app</module>
+
         <module>cli</module>
     </modules>
 
