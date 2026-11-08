@@ -344,4 +344,60 @@ public class DResFinderTest {
         assertTrue(result.isEmpty());
         assertEquals(0, result.pairCount());
     }
+
+    @Test
+    void generatedCertificatesReplayBothConditions(){
+
+        ResidualAutomaton automaton = validAutomaton();
+
+        DResResult result = finder.find(automaton);
+
+        assertEquals(
+                result.pairCount(),
+                result.getCertificates().size()
+        );
+
+        for(DResResult.Certificate certificate
+                : result.getCertificates()){
+
+            ResidualState initial =
+                    automaton.getInitialState();
+
+            // Condition 1: q0 --w1--> q
+            ResidualState current = initial;
+
+            for(Valuation valuation : certificate.w1()){
+                current = automaton.getDestination(current, valuation);
+            }
+
+            assertSame(certificate.q(), current);
+
+            // condition 1: qPrime --w1--> qFinal
+            current = certificate.qPrime();
+
+            for(Valuation valuation : certificate.w1()){
+                current = automaton.getDestination(current, valuation);
+            }
+
+            assertTrue(automaton.isFinalState(current));
+
+            // condition 2: q --w2--> qFinal
+            current = certificate.q();
+
+            for(Valuation valuation : certificate.w2()){
+                current = automaton.getDestination(current, valuation);
+            }
+
+            assertTrue(automaton.isFinalState(current));
+
+            // condition 2: q0 --w2--> qPrime
+            current = initial;
+
+            for(Valuation valuation : certificate.w2()){
+                current = automaton.getDestination(current, valuation);
+            }
+
+            assertSame(certificate.qPrime(), current);
+        }
+    }
 }

@@ -6,24 +6,31 @@ import ltlf.automaton.ResidualState;
 
 import java.util.*;
 
+/**
+ * finds DRes state pairs using synchronized product-state exploration.
+ */
 public final class DResFinder {
 
-    /**
-     * internal product-automaton state.
-     * both components may be identical.
-     */
+    // Internal product-automaton state. Both components may be identical.
+
     private record ProductState(
             ResidualState first,
-            ResidualState second) {
-    }
+            ResidualState second
+    ){}
 
-    /**
-     * ordered candidate pair (q, q').
-     */
+    // ordered candidate pair (q, qPrime). orientation is significant.
+
     private record CandidatePair(
             ResidualState first,
-            ResidualState second) {
-    }
+            ResidualState second
+    ){}
+
+    // One predecessor link in a synchronized-product BFS tree.
+
+    private record ProductStep(
+            ProductState previous,
+            Valuation valuation
+    ) {}
 
     public DResResult find(ResidualAutomaton automaton){
 
@@ -37,7 +44,7 @@ public final class DResFinder {
                         .anyMatch(automaton::isFinalState);
 
         if(!hasFinalState){
-            return new DResResult(Set.of());
+            return DResResult.withCertificates(Set.of());
         }
 
         List<ResidualState> eligibleStates =
@@ -47,79 +54,90 @@ public final class DResFinder {
                         .toList();
 
         if (eligibleStates.size() < 2){
-            return new DResResult(Set.of());
+            return DResResult.withCertificates(Set.of());
         }
 
         /*
          * condition 1:
          *
          * q0 --w1--> q
-         * q' --w1--> qf
+         * qPrime --w1--> qFinal
          */
-        Set<CandidatePair> conditionOne =
+        Map<CandidatePair, List<Valuation>> conditionOne =
                 findConditionOne(automaton, eligibleStates);
 
         /*
          * condition 2:
          *
-         * q --w2--> qf
-         * q0 --w2--> q'
+         * q --w2--> qFinal
+         * q0 --w2--> qPrime
          */
-        Set<CandidatePair> conditionTwo =
+        Map<CandidatePair, List<Valuation>> conditionTwo =
                 findConditionTwo(automaton, eligibleStates);
 
-        /*
-         * intersect ORDERED pairs.
-         *
-         * The orientation must be identical in both conditions.
-         */
-        conditionOne.retainAll(conditionTwo);
+        // preserve the original ordered-pair intersection semantics.
 
-        /*
-         * convert ordered pairs into canonical,
-         * unordered StatePair objects for the final result.
-         */
-        Set<DResResult.StatePair> validPairs =
+        conditionOne.keySet().retainAll(conditionTwo.keySet());
+
+        Set<DResResult.Certificate> certificates =
                 new LinkedHashSet<>();
 
-        for(CandidatePair pair : conditionOne){
+        Set<DResResult.StatePair> certifiedPairs =
+                new LinkedHashSet<>();
 
-            validPairs.add(
-                    new DResResult.StatePair(
-                            pair.first(),
-                            pair.second()
-                    )
-            );
+        for (CandidatePair candidate : conditionOne.keySet()) {
+
+            ResidualState q = candidate.first();
+            ResidualState qPrime = candidate.second();
+
+            DResResult.StatePair canonicalPair =
+                    new DResResult.StatePair(q, qPrime);
+
+            /*
+             * the public result represents unordered canonical pairs.
+             *
+             * if both orientations satisfy the conditions, retain the
+             * first deterministic certificate for that canonical pair.
+             */
+            if(certifiedPairs.add(canonicalPair)){
+                certificates.add(
+                        new DResResult.Certificate(
+                                canonicalPair,
+                                q,
+                                qPrime,
+                                conditionOne.get(candidate),
+                                conditionTwo.get(candidate)
+                        )
+                );
+            }
         }
 
-        return new DResResult(validPairs);
+        return DResResult.withCertificates(certificates);
     }
 
     /**
-     * condition 1:
-     *
-     * q0 --w1--> q
-     * q' --w1--> qf
+     * finds shortest w1 witnesses for condition 1.
      */
-    private Set<CandidatePair> findConditionOne(
+    private Map<CandidatePair, List<Valuation>> findConditionOne(
             ResidualAutomaton automaton,
-            List<ResidualState> eligibleStates) {
+            List<ResidualState> eligibleStates
+    ){
 
-        Set<CandidatePair> result =
-                new LinkedHashSet<>();
+        Map<CandidatePair, List<Valuation>> result =
+                new LinkedHashMap<>();
 
         ResidualState initial =
                 automaton.getInitialState();
 
         for(ResidualState qPrime : eligibleStates){
 
-            Set<ProductState> reachable =
+            Map<ProductState, ProductStep> reachable =
                     reachablePairs(
                             automaton,
                             new ProductState(initial, qPrime)
                     );
 
-            for(ProductState pair : reachable){
+            for (ProductState pair : reachable.keySet()) {
 
                 ResidualState q = pair.first();
 
@@ -127,8 +145,9 @@ public final class DResFinder {
                         && q != qPrime
                         && automaton.isFinalState(pair.second())){
 
-                    result.add(
-                            new CandidatePair(q, qPrime)
+                    result.putIfAbsent(
+                            new CandidatePair(q, qPrime),
+                            reconstructWord(reachable, pair)
                     );
                 }
             }
@@ -138,30 +157,28 @@ public final class DResFinder {
     }
 
     /**
-     * condition 2:
-     *
-     * q --w2--> qf
-     * q0 --w2--> q'
+     * Finds shortest w2 witnesses for condition 2.
      */
-    private Set<CandidatePair> findConditionTwo(
+    private Map<CandidatePair, List<Valuation>> findConditionTwo(
             ResidualAutomaton automaton,
-            List<ResidualState> eligibleStates){
+            List<ResidualState> eligibleStates
+    ){
 
-        Set<CandidatePair> result =
-                new LinkedHashSet<>();
+        Map<CandidatePair, List<Valuation>> result =
+                new LinkedHashMap<>();
 
         ResidualState initial =
                 automaton.getInitialState();
 
         for(ResidualState q : eligibleStates){
 
-            Set<ProductState> reachable =
+            Map<ProductState, ProductStep> reachable =
                     reachablePairs(
                             automaton,
                             new ProductState(q, initial)
                     );
 
-            for(ProductState pair : reachable){
+            for (ProductState pair : reachable.keySet()) {
 
                 ResidualState qPrime = pair.second();
 
@@ -169,8 +186,9 @@ public final class DResFinder {
                         && isEligible(automaton, qPrime, initial)
                         && q != qPrime) {
 
-                    result.add(
-                            new CandidatePair(q, qPrime)
+                    result.putIfAbsent(
+                            new CandidatePair(q, qPrime),
+                            reconstructWord(reachable, pair)
                     );
                 }
             }
@@ -185,7 +203,8 @@ public final class DResFinder {
     private boolean isEligible(
             ResidualAutomaton automaton,
             ResidualState state,
-            ResidualState initial) {
+            ResidualState initial
+    ) {
 
         return state != null
                 && state != initial
@@ -197,24 +216,25 @@ public final class DResFinder {
      *
      * both components consume exactly the same valuation.
      */
-    private Set<ProductState> reachablePairs(
+    private Map<ProductState, ProductStep> reachablePairs(
             ResidualAutomaton automaton,
-            ProductState start) {
+            ProductState start
+    ) {
 
-        Set<ProductState> visited =
-                new LinkedHashSet<>();
+        Map<ProductState, ProductStep> predecessor =
+                new LinkedHashMap<>();
 
         Queue<ProductState> queue =
                 new ArrayDeque<>();
 
-        visited.add(start);
+        predecessor.put(start, null);
         queue.add(start);
 
         while(!queue.isEmpty()){
 
             ProductState current = queue.remove();
 
-            for(Valuation valuation : automaton.getAlphabet()){
+            for (Valuation valuation : automaton.getAlphabet()) {
 
                 ResidualState nextFirst =
                         automaton.getDestination(
@@ -228,19 +248,57 @@ public final class DResFinder {
                                 valuation
                         );
 
-                if(nextFirst == null || nextSecond == null){
+                if (nextFirst == null || nextSecond == null) {
                     continue;
                 }
 
                 ProductState next =
                         new ProductState(nextFirst, nextSecond);
 
-                if(visited.add(next)){
+                if (!predecessor.containsKey(next)) {
+
+                    predecessor.put(
+                            next,
+                            new ProductStep(current, valuation)
+                    );
+
                     queue.add(next);
                 }
             }
         }
 
-        return visited;
+        return predecessor;
+    }
+
+    /**
+     * Reconstructs the shortest synchronized word to a reached
+     * product state.
+     */
+    private List<Valuation> reconstructWord(
+            Map<ProductState, ProductStep> predecessor,
+            ProductState target
+    ) {
+
+        List<Valuation> word =
+                new ArrayList<>();
+
+        ProductState current = target;
+
+        while (true) {
+
+            ProductStep step =
+                    predecessor.get(current);
+
+            if (step == null) {
+                break;
+            }
+
+            word.add(step.valuation());
+            current = step.previous();
+        }
+
+        Collections.reverse(word);
+
+        return List.copyOf(word);
     }
 }
