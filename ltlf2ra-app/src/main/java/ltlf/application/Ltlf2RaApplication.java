@@ -13,14 +13,12 @@ import ltlf.graphviz.ResidualAutomatonDotExporter;
 
 public class Ltlf2RaApplication {
 
-
     private final Ltlf2RaService service;
     private final ResidualAutomatonFormatter formatter;
     private final ResidualAutomatonDotExporter dotExporter;
     private final GraphvizRenderer graphvizRenderer;
     private final DResFinder dResFinder;
     private final DResFormatter dResFormatter;
-
 
     public Ltlf2RaApplication(){
         this(
@@ -35,7 +33,8 @@ public class Ltlf2RaApplication {
 
     public Ltlf2RaApplication(
             Ltlf2RaService service,
-            ResidualAutomatonFormatter formatter){
+            ResidualAutomatonFormatter formatter
+    ){
         this(
                 service,
                 formatter,
@@ -50,8 +49,8 @@ public class Ltlf2RaApplication {
             Ltlf2RaService service,
             ResidualAutomatonFormatter formatter,
             ResidualAutomatonDotExporter dotExporter,
-            GraphvizRenderer graphvizRenderer) {
-
+            GraphvizRenderer graphvizRenderer
+    ) {
         this(
                 service,
                 formatter,
@@ -68,7 +67,8 @@ public class Ltlf2RaApplication {
             ResidualAutomatonDotExporter dotExporter,
             GraphvizRenderer graphvizRenderer,
             DResFinder dResFinder,
-            DResFormatter dResFormatter) {
+            DResFormatter dResFormatter
+    ) {
 
         this.service = Objects.requireNonNull(service);
         this.formatter = Objects.requireNonNull(formatter);
@@ -83,13 +83,17 @@ public class Ltlf2RaApplication {
     }
 
     /**
-     * Builds an RA using the formula's propositions plus additional propositions
-     * from a surrounding model.
+     * builds an RA using the formula's propositions plus additional
+     * propositions from a surrounding model.
      */
     public ResidualAutomaton build(
             String formulaText,
-            Collection<AtomicProposition> additionalPropositions) {
-        return service.build(formulaText, additionalPropositions);
+            Collection<AtomicProposition> additionalPropositions
+    ){
+        return service.build(
+                formulaText,
+                additionalPropositions
+        );
     }
 
     public String execute(String formulaText){
@@ -100,7 +104,11 @@ public class Ltlf2RaApplication {
         return dotExporter.export(build(formulaText));
     }
 
-    public void render(String formulaText, String format, Path output){
+    public void render(
+            String formulaText,
+            String format,
+            Path output
+    ) {
         graphvizRenderer.render(
                 build(formulaText),
                 dotExporter,
@@ -110,7 +118,7 @@ public class Ltlf2RaApplication {
     }
 
     /**
-     * builds the RA and discovers its DRes states.
+     * Builds the RA and discovers its DRes states.
      */
     public DResResult findDRes(String formulaText){
 
@@ -121,7 +129,7 @@ public class Ltlf2RaApplication {
     }
 
     /**
-     * builds the RA, discovers DRes, and formats the result.
+     * Builds the RA, discovers DRes, and formats the result.
      */
     public String executeDRes(String formulaText){
 
@@ -129,5 +137,40 @@ public class Ltlf2RaApplication {
                 findDRes(formulaText);
 
         return dResFormatter.format(result);
+    }
+
+    /**
+     * Builds the Residual Automaton once, computes DRes certificates,
+     * and renders the highlighted automaton in SVG and PNG formats.
+     *
+     * The supplied path is an output base; extensions are added here.
+     */
+    public void renderDResHighlighted(
+            String formulaText,
+            Path outputBase
+    ) {
+
+        Objects.requireNonNull(outputBase, "outputBase");
+
+        ResidualAutomaton automaton =
+                build(formulaText);
+
+        DResResult result =
+                dResFinder.find(automaton);
+
+        String dot =
+                dotExporter.export(automaton, result);
+
+        graphvizRenderer.renderDot(
+                dot,
+                "svg",
+                Path.of(outputBase + ".svg")
+        );
+
+        graphvizRenderer.renderDot(
+                dot,
+                "png",
+                Path.of(outputBase + ".png")
+        );
     }
 }

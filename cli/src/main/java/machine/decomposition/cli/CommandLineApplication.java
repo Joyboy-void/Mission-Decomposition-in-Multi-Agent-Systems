@@ -11,18 +11,17 @@ import product.automaton.application.ProductAutomatonApplication;
 import team.automaton.TeamAutomaton;
 import team.automaton.graphviz.TeamAutomatonDotExporter;
 
-import java.io.PrintStream;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.Arrays;
-import java.util.Objects;
-
 import java.io.IOException;
+import java.io.PrintStream;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.Arrays;
 import java.util.HexFormat;
+import java.util.Objects;
 
 public final class CommandLineApplication {
 
@@ -30,12 +29,14 @@ public final class CommandLineApplication {
         TEXT,
         DOT,
         DRES,
+        DRES_RENDER_HIGHLIGHTED,
         RA_RENDER,
         AGENT_RENDER,
         PRODUCT_RENDER,
         TEAM_RENDER,
         DECOMPOSE,
-        DECOMPOSE_IMAGES
+        DECOMPOSE_IMAGES,
+        DECOMPOSE_IMAGES_HIGHLIGHTED
     }
 
     private record ParsedCommand(
@@ -49,6 +50,12 @@ public final class CommandLineApplication {
 
     private static final Path INTERMEDIATE_OUTPUT_DIRECTORY =
             Path.of("output", "intermediate");
+
+    private static final Path AUTOMATON_OUTPUT_DIRECTORY =
+            Path.of("output", "automaton");
+
+    private static final Path DRES_OUTPUT_DIRECTORY =
+            Path.of("output", "dres-certificate");
 
     private final Ltlf2RaApplication raApplication;
     private final AgentModelApplication agentApplication;
@@ -69,21 +76,33 @@ public final class CommandLineApplication {
             TeamAutomatonDotExporter teamAutomatonExporter,
             DecompositionImageExporter decompositionImageExporter
     ) {
+
         this.raApplication = Objects.requireNonNull(raApplication);
         this.agentApplication = Objects.requireNonNull(agentApplication);
         this.productApplication = Objects.requireNonNull(productApplication);
+
         this.decompositionApplication =
                 Objects.requireNonNull(decompositionApplication);
+
         this.decompositionFormatter =
                 Objects.requireNonNull(decompositionFormatter);
-        this.graphvizRenderer = Objects.requireNonNull(graphvizRenderer);
+
+        this.graphvizRenderer =
+                Objects.requireNonNull(graphvizRenderer);
+
         this.teamAutomatonExporter =
                 Objects.requireNonNull(teamAutomatonExporter);
+
         this.decompositionImageExporter =
                 Objects.requireNonNull(decompositionImageExporter);
     }
 
-    public int run(String[] args, PrintStream out, PrintStream err) {
+    public int run(
+            String[] args,
+            PrintStream out,
+            PrintStream err
+    ) {
+
         Objects.requireNonNull(args);
         Objects.requireNonNull(out);
         Objects.requireNonNull(err);
@@ -92,6 +111,7 @@ public final class CommandLineApplication {
             printUsage(err);
             return 1;
         }
+
         if (args.length == 1 && "--help".equals(args[0])) {
             printUsage(out);
             return 0;
@@ -116,6 +136,37 @@ public final class CommandLineApplication {
                                 raApplication.executeDRes(command.formula())
                         );
 
+                case DRES_RENDER_HIGHLIGHTED -> {
+
+                    String runHash = createDResRunHash(
+                            command.formula()
+                    );
+
+                    Path outputBase =
+                            DRES_OUTPUT_DIRECTORY.resolve(
+                                    "dres-certificate-" + runHash
+                            );
+
+                    raApplication.renderDResHighlighted(
+                            command.formula(),
+                            outputBase
+                    );
+
+                    out.println(
+                            "DRes certificate visualization generated:"
+                    );
+
+                    out.println(
+                            "  SVG: " + Path.of(outputBase + ".svg").toAbsolutePath()
+                    );
+
+                    out.println(
+                            "  PNG: " + Path.of(outputBase + ".png").toAbsolutePath()
+                    );
+
+                    out.println("Run identifier: " + runHash);
+                }
+
                 case RA_RENDER -> {
                     Path output = Path.of(command.output());
 
@@ -126,13 +177,18 @@ public final class CommandLineApplication {
                     );
 
                     out.println(
-                            "Graph written to: " + output.toAbsolutePath()
+                            "Graph written to: "
+                                    + output.toAbsolutePath()
                     );
                 }
 
                 case AGENT_RENDER -> {
-                    Path input = validateAgentFile(command.agentFile());
-                    Path output = Path.of(command.output());
+
+                    Path input =
+                            validateAgentFile(command.agentFile());
+
+                    Path output =
+                            Path.of(command.output());
 
                     agentApplication.render(
                             input,
@@ -141,13 +197,18 @@ public final class CommandLineApplication {
                     );
 
                     out.println(
-                            "Graph written to: " + output.toAbsolutePath()
+                            "Graph written to: "
+                                    + output.toAbsolutePath()
                     );
                 }
 
                 case PRODUCT_RENDER -> {
-                    Path input = validateAgentFile(command.agentFile());
-                    Path output = Path.of(command.output());
+
+                    Path input =
+                            validateAgentFile(command.agentFile());
+
+                    Path output =
+                            Path.of(command.output());
 
                     productApplication.render(
                             input,
@@ -157,13 +218,18 @@ public final class CommandLineApplication {
                     );
 
                     out.println(
-                            "Graph written to: " + output.toAbsolutePath()
+                            "Graph written to: "
+                                    + output.toAbsolutePath()
                     );
                 }
 
                 case TEAM_RENDER -> {
-                    Path input = validateAgentFile(command.agentFile());
-                    Path output = Path.of(command.output());
+
+                    Path input =
+                            validateAgentFile(command.agentFile());
+
+                    Path output =
+                            Path.of(command.output());
 
                     TeamAutomaton team =
                             decompositionApplication.buildTeamAutomaton(
@@ -186,7 +252,9 @@ public final class CommandLineApplication {
                 }
 
                 case DECOMPOSE -> {
-                    Path input = validateAgentFile(command.agentFile());
+
+                    Path input =
+                            validateAgentFile(command.agentFile());
 
                     DecompositionPipelineResult result =
                             decompositionApplication.execute(
@@ -199,9 +267,10 @@ public final class CommandLineApplication {
                             decompositionFormatter.format(result)
                     );
                 }
-
                 case DECOMPOSE_IMAGES -> {
-                    Path input = validateAgentFile(command.agentFile());
+
+                    Path input =
+                            validateAgentFile(command.agentFile());
 
                     DecompositionPipelineResult result =
                             decompositionApplication.execute(
@@ -210,11 +279,12 @@ public final class CommandLineApplication {
                                     command.numberOfAgents()
                             );
 
-                    String runHash = createRunHash(
-                            input,
-                            command.formula(),
-                            command.numberOfAgents()
-                    );
+                    String runHash =
+                            createRunHash(
+                                    input,
+                                    command.formula(),
+                                    command.numberOfAgents()
+                            );
 
                     String suffix = "-" + runHash;
 
@@ -224,13 +294,67 @@ public final class CommandLineApplication {
                             suffix
                     );
 
-                    out.println(decompositionFormatter.format(result));
+                    out.println(
+                            decompositionFormatter.format(result)
+                    );
 
                     out.println();
+
                     out.println(
                             "Intermediate automata images exported to: "
                                     + INTERMEDIATE_OUTPUT_DIRECTORY.toAbsolutePath()
                     );
+
+                    out.println("Run identifier: " + runHash);
+                }
+
+                case DECOMPOSE_IMAGES_HIGHLIGHTED -> {
+
+                    Path input =
+                            validateAgentFile(command.agentFile());
+
+                    DecompositionPipelineResult result =
+                            decompositionApplication.execute(
+                                    input,
+                                    command.formula(),
+                                    command.numberOfAgents()
+                            );
+
+                    String runHash =
+                            createRunHash(
+                                    input,
+                                    command.formula(),
+                                    command.numberOfAgents()
+                            );
+
+                    out.println(
+                            decompositionFormatter.format(result)
+                    );
+
+                    out.println();
+
+                    if (result.decompositionResult().isDecomposable()) {
+
+                        decompositionImageExporter
+                                .exportHighlightedDecomposition(
+                                        result,
+                                        AUTOMATON_OUTPUT_DIRECTORY,
+                                        "-" + runHash
+                                );
+
+                        out.println(
+                                "Highlighted decomposition Team Automaton written to: "
+                                        + AUTOMATON_OUTPUT_DIRECTORY.toAbsolutePath()
+                        );
+
+                    } else {
+
+                        out.println(
+                                "No decomposition exists; "
+                                        + "no highlighted image was generated."
+                        );
+                    }
+
                     out.println("Run identifier: " + runHash);
                 }
             }
@@ -238,14 +362,17 @@ public final class CommandLineApplication {
             return 0;
 
         } catch (IllegalArgumentException e){
+
             err.println("Error: " + e.getMessage());
             return 1;
 
         } catch (UnsupportedOperationException e){
+
             err.println("Not configured: " + e.getMessage());
             return 2;
 
         } catch (RuntimeException e){
+
             err.println("Error: " + e.getMessage());
             return 2;
         }
@@ -255,7 +382,7 @@ public final class CommandLineApplication {
      * Generates a deterministic identifier for a decomposition run.
      *
      * The hash depends on:
-     * 1. Agent model file contents.
+     * 1. agent model file contents.
      * 2. LTLf formula.
      * 3. Number of agents.
      *
@@ -270,33 +397,43 @@ public final class CommandLineApplication {
             MessageDigest digest =
                     MessageDigest.getInstance("SHA-256");
 
-            //include the complete Agent Model file contents.
-            byte[] modelContents = Files.readAllBytes(agentModelFile);
+            // Include the complete Agent Model file contents.
+            byte[] modelContents =
+                    Files.readAllBytes(agentModelFile);
 
-            digest.update(ByteBuffer.allocate(Integer.BYTES)
-                    .putInt(modelContents.length)
-                    .array());
+            digest.update(
+                    ByteBuffer.allocate(Integer.BYTES)
+                            .putInt(modelContents.length)
+                            .array()
+            );
+
             digest.update(modelContents);
 
-            // include the formula.
+            // Include the formula.
             byte[] formulaBytes =
                     formula.trim().getBytes(StandardCharsets.UTF_8);
 
-            digest.update(ByteBuffer.allocate(Integer.BYTES)
-                    .putInt(formulaBytes.length)
-                    .array());
+            digest.update(
+                    ByteBuffer.allocate(Integer.BYTES)
+                            .putInt(formulaBytes.length)
+                            .array()
+            );
+
             digest.update(formulaBytes);
 
-            // include the number of agents.
-            digest.update(ByteBuffer.allocate(Integer.BYTES)
-                    .putInt(numberOfAgents)
-                    .array());
+            // Include the number of agents.
+            digest.update(
+                    ByteBuffer.allocate(Integer.BYTES)
+                            .putInt(numberOfAgents)
+                            .array()
+            );
 
             return HexFormat.of()
                     .formatHex(digest.digest())
                     .substring(0, 12);
 
-        }catch (NoSuchAlgorithmException | IOException e) {
+        }catch(NoSuchAlgorithmException | IOException e){
+
             throw new IllegalStateException(
                     "Could not generate decomposition run identifier.",
                     e
@@ -304,6 +441,37 @@ public final class CommandLineApplication {
         }
     }
 
+    /**
+     * generates a deterministic identifier for a DRes visualization.
+     * The hash depends on the LTLf formula.
+     * Only the first 12 hexadecimal characters of SHA-256 are used.
+     */
+    private String createDResRunHash(String formula) {
+
+        try{
+            MessageDigest digest =
+                    MessageDigest.getInstance("SHA-256");
+
+            byte[] formulaBytes =
+                    formula.trim().getBytes(StandardCharsets.UTF_8);
+
+            digest.update(formulaBytes);
+
+            return HexFormat.of()
+                    .formatHex(digest.digest())
+                    .substring(0, 12);
+
+        }catch(NoSuchAlgorithmException e){
+            throw new IllegalStateException(
+                    "Could not generate DRes visualization identifier.",
+                    e
+            );
+        }
+    }
+
+    /**
+     * Parses CLI commands.
+     */
     private ParsedCommand parse(String[] args){
         return switch (args[0]){
             case "--ra" ->
@@ -326,6 +494,9 @@ public final class CommandLineApplication {
                             joinFormula(args, 1),
                             null, null, null, 0
                     );
+
+            case "--dres-img-h" ->
+                    parseDResHighlightedRender(args);
 
             case "--ra-svg" ->
                     parseRaRender(args, "svg");
@@ -352,10 +523,22 @@ public final class CommandLineApplication {
                     parseTeamRender(args, "png");
 
             case "--decom" ->
-                    parseDecomposition(args, Mode.DECOMPOSE);
+                    parseDecomposition(
+                            args,
+                            Mode.DECOMPOSE
+                    );
 
             case "--decom-img" ->
-                    parseDecomposition(args, Mode.DECOMPOSE_IMAGES);
+                    parseDecomposition(
+                            args,
+                            Mode.DECOMPOSE_IMAGES
+                    );
+
+            case "--decom-img-h" ->
+                    parseDecomposition(
+                            args,
+                            Mode.DECOMPOSE_IMAGES_HIGHLIGHTED
+                    );
 
             default ->
                     throw new IllegalArgumentException(
@@ -368,9 +551,77 @@ public final class CommandLineApplication {
     /**
      * parses:
      *
+     * --dres-img-h "<LTLf formula>"
+     *
+     * The output filename and directory are generated automatically.
+     */
+    private ParsedCommand parseDResHighlightedRender(String[] args) {
+
+        if (args.length != 2) {
+            throw new IllegalArgumentException(
+                    "Usage: --dres-img-h \"<LTLf formula>\""
+            );
+        }
+
+        return new ParsedCommand(
+                Mode.DRES_RENDER_HIGHLIGHTED,
+                joinFormula(args, 1),
+                null,
+                null,
+                null,
+                0
+        );
+    }
+
+    /**
+     * removes a supplied .svg or .png extension from an output path.
+     *
+     * This ensures that both output formats are generated from
+     * the same base filename.
+     */
+    private Path removeImageExtension(Path path) {
+
+        Path fileName = path.getFileName();
+
+        if (fileName == null) {
+            return path;
+        }
+
+        String name = fileName.toString();
+
+        String lower =
+                name.toLowerCase(java.util.Locale.ROOT);
+
+        String extension =
+                lower.endsWith(".svg") ? ".svg"
+                        : lower.endsWith(".png") ? ".png"
+                        : null;
+
+        if (extension == null) {
+            return path;
+        }
+
+        String baseName =
+                name.substring(
+                        0,
+                        name.length() - extension.length()
+                );
+
+        Path parent = path.getParent();
+
+        return parent == null
+                ? Path.of(baseName)
+                : parent.resolve(baseName);
+    }
+
+    /**
+     * parses:
+     *
      * --decom <agent-model-file> "<LTLf formula>" <number-of-agents>
      *
      * --decom-img <agent-model-file> "<LTLf formula>" <number-of-agents>
+     *
+     * --decom-img-h <agent-model-file> "<LTLf formula>" <number-of-agents>
      */
     private ParsedCommand parseDecomposition(
             String[] args,
@@ -385,10 +636,16 @@ public final class CommandLineApplication {
         }
 
         String agentFile =
-                requireNonBlank(args[1], "Agent-model file");
+                requireNonBlank(
+                        args[1],
+                        "Agent-model file"
+                );
 
         String formula =
-                requireNonBlank(args[2], "Formula");
+                requireNonBlank(
+                        args[2],
+                        "Formula"
+                );
 
         int numberOfAgents =
                 parseNumberOfAgents(args[3]);
@@ -486,7 +743,7 @@ public final class CommandLineApplication {
     }
 
     /**
-     * parses:
+     * Parses:
      *
      * --team-svg <output-file> <agent-model-file>
      *            "<LTLf formula>" <number-of-agents>
@@ -557,19 +814,31 @@ public final class CommandLineApplication {
      * joins remaining arguments into an LTLf formula.
      * supports quoted and unquoted formulas.
      */
-    private String joinFormula(String[] args, int start){
+    private String joinFormula(
+            String[] args,
+            int start
+    ){
+
         if (start >= args.length){
             throw new IllegalArgumentException(
                     "Formula must not be blank"
             );
         }
 
-        String formula = String.join(
-                " ",
-                Arrays.copyOfRange(args, start, args.length)
-        ).trim();
+        String formula =
+                String.join(
+                        " ",
+                        Arrays.copyOfRange(
+                                args,
+                                start,
+                                args.length
+                        )
+                ).trim();
 
-        return requireNonBlank(formula, "Formula");
+        return requireNonBlank(
+                formula,
+                "Formula"
+        );
     }
 
     private String requireNonBlank(
@@ -597,11 +866,13 @@ public final class CommandLineApplication {
         out.println(
                 "  run-cli --ra-png <output.png> \"<LTLf formula>\""
         );
-
         out.println();
         out.println("DRes:");
         out.println("  run-cli --dres \"<LTLf formula>\"");
 
+        out.println(
+                "  run-cli --dres-img-h \"<LTLf formula>\""
+        );
         out.println();
         out.println("Agent Model:");
         out.println(
@@ -643,6 +914,10 @@ public final class CommandLineApplication {
         );
         out.println(
                 "  run-cli --decom-img <agent-model-file> "
+                        + "\"<LTLf formula>\" <number-of-agents>"
+        );
+        out.println(
+                "  run-cli --decom-img-h <agent-model-file> "
                         + "\"<LTLf formula>\" <number-of-agents>"
         );
 
