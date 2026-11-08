@@ -1,5 +1,12 @@
-# `ltlf2ra-graphviz`
+# Residual Automaton Graphviz exporter
 
-This module converts a `ResidualAutomaton` into Graphviz DOT. `ResidualAutomatonDotExporter` controls RA-specific graph details, including state IDs, residual-formula labels, the initial arrow, accepting-state shapes, and transition labels.
+`ltlf2ra-graphviz` converts a `ResidualAutomaton` into Graphviz DOT source.
 
-The exporter implements `DotExporter<ResidualAutomaton>` from `graphviz-core`. It returns DOT text and does not start a Graphviz process. Rendering and executable resolution belong to the shared infrastructure.
+`ResidualAutomatonDotExporter` controls the RA-specific presentation:
+
+- state identifiers and residual-formula labels;
+- the initial-state indicator;
+- accepting-state styling;
+- transition labels derived from valuations.
+
+The exporter implements the shared `DotExporter<ResidualAutomaton>` contract. It returns DOT text only. Executable discovery and rendering are delegated to `graphviz-core`.

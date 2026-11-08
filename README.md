@@ -1,27 +1,63 @@
 # Machine Decomposition
 
-A modular Java 21 project for constructing LTLf Residual Automata (RA), representing weighted agent models, and building product automata between the two. Automata can be printed in the terminal or exported through Graphviz to DOT, SVG, and PNG.
+A modular Java 21 implementation for decomposing an LTLf task specification among a fixed number of homogeneous agents. The project constructs a Residual Automaton (RA), combines it with a weighted agent model, identifies decomposition-responsible residual states (DRes), builds an implicit Team Automaton, and finds a minimum-cost accepting execution.
 
-The project is split into Maven modules so that formula semantics, agent-model data, product construction, rendering, and command-line handling remain separate.
+The command-line interface also exposes the intermediate automata and DRes analysis independently.
 
-## Current capabilities
+## 1. What the project does
 
-- Parse LTLf formulas through the Spot integration.
-- Build reachable residual automata with formula normalization and semantic equivalence checking.
-- Read weighted agent models from a plain-text format.
-- Construct product automata over the combined atomic-proposition universe of the formula and agent model.
-- Export RA, agent-model, and product-automaton graphs.
-- Build and run the project on Windows and Linux/WSL using the supplied scripts.
-- DRes Analysis: Identifies pairs of residual automaton states that represent interchangeable task sequences.
+Given:
 
-### DRes Analysis
+- an **LTLf formula** describing the task or mission;
+- an **agent model** describing the states, capabilities, and transition costs of one agent;
+- a positive integer **number of agents**;
 
-DRes identifies pairs of non-initial, non-final residual states that satisfy the two sequence-interchangeability conditions. It uses synchronized product-state exploration to determine whether the required paths exist.
+the application searches for a least-cost way to distribute the required work across the agents, in order, while preserving the formula's finite-trace semantics.
 
-See [dres-analysis](docs/dres-analysis.md) for the intuition, pseudocode, and correctness argument.
-## Setup and build
+At a high level:
 
-The project targets Java 21. The RA parser/equivalence integration uses Spot through JNI, and image output requires Graphviz.
+```text
+LTLf formula ──> Residual Automaton ───────────────┐
+                                                   ├─> Product Automaton
+Agent model ───────────────────────────────────────┘
+                         │
+                         ├─> DRes analysis
+                         │
+                         └─> Team Automaton (n copies)
+                                      │
+                                      └─> Dijkstra
+                                             │
+                                             └─> Minimum-cost decomposition
+```
+
+The Team Automaton is represented implicitly: it reuses Product Automaton states and creates transitions when requested, rather than eagerly copying the entire product graph `n` times.
+
+## 2. Main capabilities
+
+- Parse supported LTLf formulas through the Spot integration.
+- Construct reachable Residual Automata using formula residuals, normalization, and semantic equivalence.
+- Parse weighted agent models from a small text format.
+- Construct Product Automata over the combined formula/agent atomic-proposition universe.
+- Find DRes states using synchronized product-state BFS.
+- Construct an implicit Team Automaton for a requested number of homogeneous agents.
+- Find a minimum-cost accepting path using Dijkstra's algorithm.
+- Print the decomposition as per-agent work segments.
+- Export RA, agent-model, Product Automaton, Team Automaton, and highlighted decomposition graphs to SVG/PNG.
+- Run on Windows and Linux/WSL using the supplied setup and launcher scripts.
+
+## 3. Requirements
+
+| Requirement | Purpose |
+|---|---|
+| Java 21 | Main implementation |
+| Maven | Multi-module build |
+| Spot | Formula parsing and semantic equivalence through JNI |
+| CMake, Ninja, C++ compiler | Build the native Spot bridge |
+| Graphviz | Render DOT as SVG/PNG |
+
+The setup scripts help configure and check the development environment. See [Development](docs/development.md).
+
+## 4. Setup and build
 
 Linux / WSL:
 
@@ -41,78 +77,143 @@ mvn clean test
 mvn clean package
 ```
 
-The executable JAR is `cli/target/cli.jar`. For normal use, prefer the launcher scripts because they configure the native library paths and Graphviz environment.
-
-## CLI examples
+For normal execution, use the launcher scripts. They configure the native-library and Graphviz paths expected by the application.
 
 ```bash
-# Residual automaton
-./scripts/run-cli.sh --ra "F(p)"
-./scripts/run-cli.sh --ra-dot "p | X(q & p)"
-./scripts/run-cli.sh --ra-svg output/ra.svg "F G p"
-./scripts/run-cli.sh --ra-png output/ra.png "F G p"
-
-# Agent model
-./scripts/run-cli.sh --agent-svg output/agent.svg examples/agent-models/example.txt
-./scripts/run-cli.sh --agent-png output/agent.png examples/agent-models/example.txt
-
-# Product automaton
-./scripts/run-cli.sh --product-svg output/product.svg examples/agent-models/example.txt "F(p)"
-./scripts/run-cli.sh --product-png output/product.png examples/agent-models/example.txt "F(p)"
+./scripts/run-cli.sh --help
 ```
 
-On Windows, use `.\scripts\run-cli.ps1` with the same options. Paths are resolved from the current working directory unless absolute; quote paths containing spaces.
+```powershell
+.\scripts\run-cli.ps1 --help
+```
 
-## Agent-model format
+## 5. Quick start
+
+Run a decomposition for three homogeneous agents:
+
+```bash
+./scripts/run-cli.sh --decom input/agent-model/agent1.txt "F(p & F(q))" 3
+```
+
+Print the optimal decomposition without rendering images:
+
+```bash
+./scripts/run-cli.sh --decom input/agent-model/agent1.txt "F(p & F(q))" 3
+```
+
+Export all intermediate automata and print the decomposition:
+
+```bash
+./scripts/run-cli.sh --decom-img input/agent-model/agent1.txt "F(p & F(q))" 3
+```
+
+Export the Team Automaton with the selected minimum-cost path highlighted:
+
+```bash
+./scripts/run-cli.sh --decom-img-h input/agent-model/agent1.txt "F(p & F(q))" 3
+```
+
+On Windows, replace `./scripts/run-cli.sh` with `.\scripts\run-cli.ps1`. Quote formulas and paths containing spaces.
+
+## 6. CLI reference
+
+| Command | Purpose |
+|---|---|
+| `--help` | Show usage |
+| `--ra "<formula>"` | Build and print a Residual Automaton |
+| `--ra-dot "<formula>"` | Print RA DOT source |
+| `--ra-svg <output.svg> "<formula>"` | Render an RA as SVG |
+| `--ra-png <output.png> "<formula>"` | Render an RA as PNG |
+| `--dres "<formula>"` | Compute and print DRes analysis |
+| `--dres-img-h "<formula>"` | Render the RA with DRes states highlighted |
+| `--agent-svg <output.svg> <model-file>` | Render an agent model as SVG |
+| `--agent-png <output.png> <model-file>` | Render an agent model as PNG |
+| `--product-svg <output.svg> <model-file> "<formula>"` | Render the Product Automaton as SVG |
+| `--product-png <output.png> <model-file> "<formula>"` | Render the Product Automaton as PNG |
+| `--team-svg <output.svg> <model-file> "<formula>" <n>` | Render the Team Automaton as SVG |
+| `--team-png <output.png> <model-file> "<formula>" <n>` | Render the Team Automaton as PNG |
+| `--decom <model-file> "<formula>" <n>` | Find and print a minimum-cost decomposition |
+| `--decom-img <model-file> "<formula>" <n>` | Run decomposition and export intermediate automata |
+| `--decom-img-h <model-file> "<formula>" <n>` | Run decomposition and export the selected path highlighted |
+
+The exact argument order matters. For decomposition commands, the number of agents must be an integer greater than or equal to one. Input and output paths are interpreted relative to the current working directory unless absolute paths are supplied.
+
+For detailed examples and output locations, see [CLI usage](docs/cli.md).
+
+## 7. Agent-model input
 
 ```text
-initial: A C
+initial: A
 
 states:
-  A: p q
-  B: q r
-  C: p
+  A: p
+  B: q
+  C: p q
   D: -
 
 edges:
-  A B 5
-  B D 2
+  A B 4
+  A C 2
   C D 3
+  B D 1
 ```
 
-`initial:` lists one or more initial states. Under `states:`, each state is followed by the propositions true at that state; `-` means an empty label. Each `edges:` line gives source, destination, and a non-negative integer cost. Blank lines and `#` comments are allowed. See [Agent-model input format](docs/agent-model-format.md).
+- `initial:` lists one or more initial state IDs.
+- Each state line gives a state ID and the propositions true in that state.
+- `-` represents an empty proposition set.
+- Each edge is `source destination non-negative-cost`.
+- Blank lines and lines beginning with `#` are ignored.
 
-## Modules
+See [Agent-model format](docs/agent-model-format.md) for validation rules.
 
-| Module | Responsibility |
+## 8. Architecture and documentation
+
+The repository is a Maven reactor. The CLI delegates to application modules; domain modules own models and algorithms; exporter modules produce DOT; `graphviz-core` invokes Graphviz.
+
+| Document | Contents |
 |---|---|
-| `automata-core` | Generic automaton and weighted-transition interfaces |
-| `ltlf2ra-core` | LTLf AST, alphabet, residual semantics, transformations, and RA construction |
-| `ltlf2ra-spot` | Spot parsing, formula printing, equivalence checking, and JNI |
-| `ltlf2ra-graphviz` | RA-specific DOT export |
-| `ltlf2ra-app` | RA build, formatting, DOT export, and rendering workflow |
-| `agent-model` | Agent states, labels, weighted transitions, and text parser |
-| `agent-model-graphviz` | Agent-model DOT export |
-| `agent-model-app` | Agent loading and visualization workflow |
-| `product-automaton` | Product states, construction, compatibility, acceptance, and costs |
-| `product-automaton-graphviz` | Product DOT export and fixed-grid layout |
-| `product-automaton-app` | Coordinates loading, RA construction, product construction, and rendering |
-| `graphviz-core` | Shared DOT exporter contract, executable resolution, and rendering |
-| `cli` | Command parsing, application wiring, and exit codes |
+| [Architecture](docs/Architecture.md) | End-to-end architecture, module dependencies, and data flow |
+| [CLI](docs/cli.md) | Commands, arguments, outputs, and exit codes |
+| [Agent-model format](docs/agent-model-format.md) | Input grammar and validation |
+| [Agent model](docs/agent-model.md) | Agent model types and semantics |
+| [Automata core](docs/automata-core.md) | Generic automaton abstractions |
+| [LTLf-to-RA core](docs/ltlf2ra-core.md) | Formula representation and residual construction |
+| [Spot integration](docs/ltlf2ra-spot.md) | Parsing, equivalence, JNI, and native build |
+| [RA application](docs/ltlf2ra-app.md) | RA workflow orchestration |
+| [RA exporter](docs/ltlf2ra-graphviz.md) | Residual Automaton DOT representation |
+| [Product Automaton](docs/product-automaton.md) | Product semantics and AP compatibility |
+| [DRes analysis](docs/dres-analysis.md) | Definition, synchronized BFS, correctness, and complexity |
+| [Team Automaton](docs/team-automaton.md) | Copies, epsilon switches, and implicit representation |
+| [Decomposition algorithm](docs/decomposition.md) | Dijkstra search and result reconstruction |
+| [Visualization](docs/visualization.md) | Exporters, layout engines, and highlighted paths |
+| [Development](docs/development.md) | Build, test, native setup, and contribution boundaries |
 
-## Documentation
+## 9. Important semantic conventions
 
-- [Architecture and module boundaries](docs/Architecture.md)
-- [CLI usage](docs/cli.md)
-- [Agent-model input format](docs/agent-model-format.md)
-- [Generic automata abstractions](docs/automata-core.md)
-- [LTLf-to-RA core](docs/ltlf2ra-core.md)
-- [Spot integration](docs/ltlf2ra-spot.md)
-- [RA application](docs/ltlf2ra-app.md)
-- [RA Graphviz exporter](docs/ltlf2ra-graphviz.md)
-- [Agent model](docs/agent-model.md)
-- [Product automaton](docs/product-automaton.md)
-- [Shared Graphviz infrastructure](docs/graphviz-core.md)
-- [Development workflow](docs/development.md)
+### Atomic propositions
 
-For the full construction flow and AP-universe semantics, start with [Architecture](docs/Architecture.md).
+The Product Automaton must account for every proposition appearing either in the formula or in the agent model:
+
+```text
+AP_product = AP_formula ∪ AP_agent
+```
+
+A valuation is a complete assignment over that universe. An agent-state label lists the propositions that are true; every proposition omitted from the label is false.
+
+### Costs
+
+Agent-model edges carry non-negative integer costs. These costs are retained by Product Automaton transitions and lifted into ordinary Team Automaton transitions. Epsilon switches between consecutive agent copies have cost zero. Dijkstra therefore operates on non-negative edge weights.
+
+### Finite traces
+
+The specification is LTLf: satisfaction is evaluated over finite traces. A residual state is accepting when its residual formula is `true`.
+
+## 10. Scope and design boundaries
+
+- Formula semantics and RA construction belong to `ltlf2ra-core`.
+- Spot-specific behavior is isolated in `ltlf2ra-spot`.
+- Agent-model parsing is independent of formula and rendering logic.
+- Product and Team Automaton modules contain their respective construction semantics.
+- Decomposition search is separate from CLI formatting and image export.
+- Exporters generate DOT; the shared renderer executes Graphviz.
+- The CLI wires the workflows together but does not implement the algorithms.

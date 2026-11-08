@@ -1,5 +1,7 @@
-# `automata-core`
+# Generic automata core
 
-This module contains generic automaton abstractions shared by the domain modules. It defines automaton interfaces, deterministic and state-labelled variants, edges, transitions, and weighted transitions.
+`automata-core` contains reusable abstractions shared by the domain-specific automata.
 
-The types are generic over state, label, and weight. They do not assume that a state is an LTLf residual, an agent state, or a product state. The module has no parser, CLI, Spot, or Graphviz responsibilities.
+It defines generic automaton interfaces and supporting types such as edges, transitions, and weighted transitions. The abstractions are parameterized by state, action/label, and weight types, allowing the same traversal and rendering infrastructure to work with residual, product, and team models.
+
+The module deliberately has no knowledge of LTLf formulas, agent capabilities, DRes, the CLI, Spot, or Graphviz. Domain modules provide the concrete semantics.

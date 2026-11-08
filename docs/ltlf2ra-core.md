@@ -1,11 +1,32 @@
-# `ltlf2ra-core`
+# LTLf-to-Residual-Automaton core
 
-This module contains the LTLf formula model and the algorithm for constructing a Residual Automaton.
+`ltlf2ra-core` contains the formula representation and the algorithm for constructing a Residual Automaton (RA).
 
-The AST supports truth constants, atomic propositions, negation, next, eventually, always, conjunction, disjunction, and until. `AtomicPropositionSet`, `Alphabet`, and `Valuation` represent the proposition universe and its complete truth assignments.
+## Formula model
 
-`ResidualSemantics` defines the one-step residual operation. The default semantics use the residual visitor, while `Simplifier` and `BooleanCanonicalizer` normalize formulas before state registration. `FormulaEquivalenceChecker` is an interface, so the core does not require Spot directly.
+The AST represents the supported LTLf operators and atoms, including truth constants, atomic propositions, negation, next, eventually, always, conjunction, disjunction, and until.
 
-`ResidualAutomatonBuilder` explores reachable residual formulas. For every discovered state and alphabet valuation it computes and normalizes the next residual, finds or registers the destination state, and records the transition. A state is accepting when its residual formula is `TrueFormula`.
+`AtomicPropositionSet`, `Alphabet`, and `Valuation` represent the proposition universe and its valuations. The alphabet enumerates the possible truth assignments over the selected proposition set.
 
-The module does not parse files, render graphs, or launch external processes.
+## Residual semantics
+
+`ResidualSemantics` defines the one-step residual operation: given a formula and the current valuation, it computes the formula that must hold over the remaining suffix for the original formula to be satisfied.
+
+The default implementation uses the residual visitor. Formula simplification and Boolean canonicalization normalize formulas before state registration. `FormulaEquivalenceChecker` is an abstraction, so the core does not directly depend on Spot.
+
+## Residual Automaton construction
+
+`ResidualAutomatonBuilder` performs reachable-state exploration:
+
+1. Register the initial formula as the initial residual state.
+2. Remove a discovered state from the exploration queue.
+3. For each valuation in the alphabet, compute the next residual formula.
+4. Normalize the result and check whether an equivalent residual state is already registered.
+5. Register a new state when necessary and add the transition.
+6. Mark a state accepting when its residual formula is `TrueFormula`.
+
+The result is a finite automaton representing the finite-trace behavior of the input formula.
+
+## Boundary
+
+This module owns formula and residual semantics. Parsing formula text, calling Spot, rendering, and command-line handling are provided by other modules.

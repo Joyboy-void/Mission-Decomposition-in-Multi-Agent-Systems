@@ -1,21 +1,33 @@
-# `product-automaton`
+# Product Automaton
 
-This module constructs the product between an `AgentModel` and a `ResidualAutomaton`.
+`product-automaton` combines an `AgentModel` with a `ResidualAutomaton`. The product tracks both the agent's current state and the remaining temporal obligation.
 
-A product state pairs one agent state with one residual state. Its label is inherited from the agent state, its acceptance status is determined by the residual state, and each product transition retains the cost of the corresponding agent transition.
+## Product state
 
-## Atomic propositions
+A `ProductState` pairs:
 
-The RA used for product construction must be built over the union of the propositions in the formula and those in the agent-model labels:
+```text
+(agentState, residualState)
+```
+
+Its proposition label is inherited from the agent state. Its acceptance status is determined by the residual component. Product transitions retain the cost of the corresponding agent-model transition.
+
+## Atomic-proposition universe
+
+The RA used for product construction must be built over the union of propositions in the formula and in the agent model:
 
 ```text
 AP_product = AP_formula ∪ AP_agent
 ```
 
-A valuation is a complete assignment over that universe. The agent label lists the propositions that are true; all propositions not listed are false. The builder creates transitions only for valuations compatible with the source agent state and for which the residual automaton has a corresponding transition.
+This is essential when the agent model contains propositions that are not mentioned in the formula. Valuations are complete assignments over this universe. A state label lists the propositions that are true; omitted propositions are false.
+
+The builder creates transitions only when the valuation is compatible with the source agent state's label and the RA has the corresponding transition.
 
 ## Initial and accepting states
 
 Each initial agent state is paired with the RA's initial state. Product states are accepting when their residual component is accepting.
 
-The builder contains product semantics only. File loading belongs to `agent-model`/`product-automaton-app`; DOT export belongs to `product-automaton-graphviz`.
+## Module boundary
+
+The module owns product-state semantics and construction. Loading model files belongs to `agent-model` and the application layer; DOT export belongs to `product-automaton-graphviz`.

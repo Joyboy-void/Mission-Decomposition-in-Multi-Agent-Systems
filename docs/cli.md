@@ -1,48 +1,97 @@
 # Command-line interface
 
-The CLI provides access to the RA, agent-model, and product-automaton workflows. Use `scripts/run-cli.sh` on Linux/WSL/macOS and `scripts/run-cli.ps1` on Windows. The scripts configure the runtime paths needed by Spot's JNI bridge and Graphviz.
+The CLI exposes the intermediate automata and the complete decomposition workflow. Use the supplied launcher scripts so that Spot's native libraries and Graphviz are configured.
 
-## Commands
+- Linux / WSL: `./scripts/run-cli.sh`
+- Windows PowerShell: `.\scripts\run-cli.ps1`
 
-### Residual Automaton
+Run `--help` to print the command summary.
+
+## 1. Residual Automaton
 
 ```bash
-./scripts/run-cli.sh --ra "F(p)"a
+./scripts/run-cli.sh --ra "F(p)"
 ./scripts/run-cli.sh --ra-dot "p | X(q & p)"
 ./scripts/run-cli.sh --ra-svg output/ra.svg "F G p"
 ./scripts/run-cli.sh --ra-png output/ra.png "F G p"
 ```
 
-`--ra` prints the formatted automaton. `--ra-dot` writes DOT to standard output. The SVG and PNG variants render to the requested file.
+`--ra` prints the automaton, `--ra-dot` prints DOT source, and the image commands render the automaton.
 
-### Agent model
-
-```bash
-./scripts/run-cli.sh --agent-svg output/agent.svg examples/agent-models/example.txt
-./scripts/run-cli.sh --agent-png output/agent.png examples/agent-models/example.txt
-```
-
-### Product automaton
+## 2. DRes analysis
 
 ```bash
-./scripts/run-cli.sh --product-svg output/product.svg examples/agent-models/example.txt "F(p)"
-./scripts/run-cli.sh --product-png output/product.png examples/agent-models/example.txt "F(p)"
+./scripts/run-cli.sh --dres "F(p & F(q))"
+./scripts/run-cli.sh --dres-img-h "F(p & F(q))"
 ```
 
-The product command takes an output path, an agent-model file, and an LTLf formula. The RA is built over the union of the formula and agent-model atomic propositions before the product is constructed.
+`--dres` computes and displays the DRes result. `--dres-img-h` creates a Residual Automaton visualization with DRes states highlighted. The image name and output location are selected by the application.
 
-On Windows, replace `./scripts/run-cli.sh` with `.\scripts
-un-cli.ps1`.
+## 3. Agent model
 
-## Paths and formulas
+```bash
+./scripts/run-cli.sh --agent-svg output/agent.svg input/agent-model/agent1.txt
+./scripts/run-cli.sh --agent-png output/agent.png input/agent-model/agent1.txt
+```
 
-Input and output paths may be relative to the current working directory or absolute. Quote paths containing spaces. Quoting the complete formula is recommended; the CLI joins the remaining formula arguments after the command's fixed arguments.
+The model file is the final argument.
 
-## Errors and exit codes
+## 4. Product Automaton
 
-- `--help` prints usage.
-- Invalid command or arguments return exit code `1`.
-- Application and rendering failures return exit code `2`.
-- SVG/PNG rendering creates missing output directories.
+```bash
+./scripts/run-cli.sh --product-svg output/product.svg input/agent-model/agent1.txt "F(p)"
+./scripts/run-cli.sh --product-png output/product.png input/agent-model/agent1.txt "F(p)"
+```
 
-Use the launchers rather than invoking the JAR directly unless you have configured the Spot and Graphviz runtime environment yourself.
+The application constructs the RA over `AP_formula ∪ AP_agent` before building the product. This is important when the model contains propositions that do not occur in the formula.
+
+## 5. Team Automaton
+
+```bash
+./scripts/run-cli.sh --team-svg output/team.svg input/agent-model/agent1.txt "F(p)" 3
+./scripts/run-cli.sh --team-png output/team.png input/agent-model/agent1.txt "F(p)" 3
+```
+
+The final argument is the number of homogeneous agents. It must be a positive integer.
+
+## 6. Minimum-cost decomposition
+
+```bash
+./scripts/run-cli.sh --decom input/agent-model/agent1.txt "F(p & F(q))" 3
+```
+
+This runs the complete pipeline and prints the work assigned to each agent, the state sequence, valuation actions, per-agent costs, and total minimum cost. If no accepting Team Automaton path exists, the CLI reports that no valid decomposition exists.
+
+## 7. Decomposition images
+
+Export the intermediate automata and print the decomposition:
+
+```bash
+./scripts/run-cli.sh --decom-img input/agent-model/agent1.txt "F(p & F(q))" 3
+```
+
+Export the selected decomposition path highlighted on the Team Automaton:
+
+```bash
+./scripts/run-cli.sh --decom-img-h input/agent-model/agent1.txt "F(p & F(q))" 3
+```
+
+The intermediate export includes the Residual, Product, and Team Automata in SVG and PNG formats. The highlighted export is generated only when a decomposition exists. The implementation uses a deterministic run identifier derived from the model file contents, formula, and agent count to distinguish runs.
+
+## 8. Argument and path rules
+
+- Quote formulas containing spaces or shell-special characters.
+- Quote paths containing spaces.
+- Relative paths are resolved from the current working directory, not from the script directory.
+- Absolute paths are supported.
+- For commands that accept an output path, the application creates missing output directories when rendering.
+
+## 9. Exit codes
+
+| Exit code | Meaning |
+|---|---|
+| `0` | Command completed |
+| `1` | Invalid command or arguments |
+| `2` | Application, native integration, or rendering failure |
+
+Use the launcher scripts rather than invoking `cli/target/cli.jar` directly unless the Spot and Graphviz runtime environment has already been configured.

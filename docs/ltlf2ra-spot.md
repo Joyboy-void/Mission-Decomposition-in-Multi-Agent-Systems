@@ -1,7 +1,19 @@
-# `ltlf2ra-spot`
+# Spot integration
 
-This module supplies the Spot-backed implementations used by the RA application. `SpotFormulaParser` parses formula text, `SpotFormulaPrinter` converts supported AST nodes to Spot syntax, and `SpotEquivalenceChecker` asks Spot whether two formulas are semantically equivalent.
+`ltlf2ra-spot` provides the Spot-backed services used by the LTLf application.
 
-`SpotNativeBridge` declares the Java/JNI boundary and the native C++ implementation calls Spot. Maven and CMake build the native bridge. `SPOT_HOME` identifies the Spot installation, and the launch scripts configure the runtime library paths.
+## Components
 
-Spot stays out of `ltlf2ra-core`; the core relies on interfaces and can be tested independently of the native implementation.
+- **`SpotFormulaParser`** parses formula text and converts it into the project's formula representation.
+- **`SpotFormulaPrinter`** converts supported AST nodes into Spot-compatible formula syntax.
+- **`SpotEquivalenceChecker`** uses Spot to decide semantic equivalence between formulas.
+- **`SpotNativeBridge`** declares the Java/JNI boundary.
+- **`SpotNativeBridge.cpp`** implements the native side of that boundary.
+
+The residual core depends on interfaces rather than on Spot classes. This keeps formula semantics and automaton construction separable from the external library.
+
+## Build and runtime
+
+The native bridge is built with Maven and CMake. The environment requires a compatible Spot installation, a C++ toolchain, CMake, and Ninja. `SPOT_HOME` identifies the Spot installation. The provided setup and run scripts configure platform-specific paths.
+
+If native loading fails, first run the setup check and verify that the Spot installation and runtime library paths match the current platform.
